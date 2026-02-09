@@ -1,0 +1,16 @@
+node_modules
+.env
+.env.local
+.env.*.local
+*.log
+server/uploads/*
+!server/uploads/.gitkeep
+client/dist
+server/dist
+mobile/.expo
+mobile/dist
+mobile/node_modules
+.expo
+.DS_Store
+*.tsbuildinfo
+Thumbs.db
