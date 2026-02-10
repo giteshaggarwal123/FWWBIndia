@@ -49,8 +49,9 @@ export function AnalyticsPage() {
     const spent = b.spent ?? b.utilized ?? 0;
     const allocated = b.allocated ?? 0;
     const pct = b.utilizationPct ?? (allocated ? Math.round((spent / allocated) * 100) : 0);
+    const head = b.head ?? '';
     return {
-      name: b.head.split('-').pop()?.trim().slice(0, 12) ?? '',
+      name: head.split('-').pop()?.trim().slice(0, 12) ?? '',
       value: pct,
     };
   });

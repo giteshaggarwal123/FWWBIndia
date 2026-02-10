@@ -38,9 +38,9 @@ export function useAuth() {
         api.get<{ user: User }>('/auth/me'),
         api.get<{ permissions: string[]; approval?: ApprovalPermissions }>('/auth/permissions'),
       ]);
-      setUser(meRes.data.user);
-      setPermissions(permRes.data.permissions || []);
-      setApproval(permRes.data.approval ?? null);
+      setUser(meRes.data?.user ?? null);
+      setPermissions(permRes.data?.permissions ?? []);
+      setApproval(permRes.data?.approval ?? null);
     } catch {
       setUser(null);
       setPermissions([]);

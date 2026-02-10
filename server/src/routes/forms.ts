@@ -22,6 +22,23 @@ router.get('/', requireRole('form-builder', 'activities', 'dashboard'), async (r
   res.json(list);
 });
 
+// List submissions by form id — explicit path so no conflict with GET /:id (used by web Form Builder)
+router.get('/submissions/:formId', requireRole('form-builder', 'activities', 'dashboard'), async (req: AuthRequest, res) => {
+  const formId = req.params.formId;
+  if (!isDBConnected()) {
+    const list = DEMO_FORM_SUBMISSIONS[formId] ?? [];
+    return res.json(list);
+  }
+  let list = await FormSubmission.find({ form: formId })
+    .populate('submittedBy', 'name username')
+    .sort({ createdAt: -1 })
+    .lean();
+  if (list.length === 0) {
+    list = (DEMO_FORM_SUBMISSIONS[formId] ?? []) as typeof list;
+  }
+  res.json(list);
+});
+
 // Demo: map login username to a name that appears in demo submissions (so "My submissions" shows data)
 export const DEMO_USER_TO_SUBMISSION_NAME: Record<string, string> = {
   employee: 'Honey Chauhan',
@@ -96,6 +113,51 @@ router.post('/', requireRole('form-builder'), async (req: AuthRequest, res) => {
   res.status(201).json(doc);
 });
 
+// List submissions for a form — MUST be before GET /:id so /:id/submissions is matched correctly
+router.get('/:id/submissions', requireRole('form-builder', 'activities', 'dashboard'), async (req: AuthRequest, res) => {
+  if (!isDBConnected()) {
+    const list = DEMO_FORM_SUBMISSIONS[req.params.id] ?? [];
+    return res.json(list);
+  }
+  let list = await FormSubmission.find({ form: req.params.id })
+    .populate('submittedBy', 'name username')
+    .sort({ createdAt: -1 })
+    .lean();
+  if (list.length === 0) {
+    list = (DEMO_FORM_SUBMISSIONS[req.params.id] ?? []) as typeof list;
+  }
+  res.json(list);
+});
+
+// Submit form (field workers / any authenticated user with activities can submit). Optional lat/lng for geotagging. MUST be before GET /:id.
+router.post('/:id/submit', requireRole('form-builder', 'activities'), async (req: AuthRequest, res) => {
+  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+  const form = await Form.findById(req.params.id);
+  if (!form) return res.status(404).json({ message: 'Form not found' });
+  if (form.status !== 'active') return res.status(400).json({ message: 'Form is not accepting submissions' });
+  const { data: bodyData, lat, lng, ...rest } = req.body as { data?: Record<string, unknown>; lat?: number; lng?: number; [k: string]: unknown };
+  const data = bodyData ?? rest;
+  if (!isDBConnected()) {
+    const synthetic = {
+      _id: `demo-sub-${Date.now()}`,
+      form: req.params.id,
+      submittedBy: { _id: req.user.id, name: req.user.name },
+      data,
+      lat: lat != null ? Number(lat) : undefined,
+      lng: lng != null ? Number(lng) : undefined,
+    };
+    return res.status(201).json(synthetic);
+  }
+  const doc = await FormSubmission.create({
+    form: req.params.id,
+    submittedBy: req.user.id,
+    data,
+    ...(lat != null && !Number.isNaN(Number(lat)) && { lat: Number(lat) }),
+    ...(lng != null && !Number.isNaN(Number(lng)) && { lng: Number(lng) }),
+  });
+  res.status(201).json(doc);
+});
+
 // Get one form
 router.get('/:id', requireRole('form-builder', 'activities', 'dashboard'), async (req: AuthRequest, res) => {
   if (!isDBConnected()) {
@@ -125,51 +187,6 @@ router.delete('/:id', requireRole('form-builder'), async (req, res) => {
   const doc = await Form.findByIdAndDelete(req.params.id);
   if (!doc) return res.status(404).json({ message: 'Not found' });
   res.json({ deleted: true });
-});
-
-// List submissions for a form — viewable by anyone with form-builder, activities, or dashboard
-router.get('/:id/submissions', requireRole('form-builder', 'activities', 'dashboard'), async (req: AuthRequest, res) => {
-  if (!isDBConnected()) {
-    const list = DEMO_FORM_SUBMISSIONS[req.params.id] ?? [];
-    return res.json(list);
-  }
-  let list = await FormSubmission.find({ form: req.params.id })
-    .populate('submittedBy', 'name username')
-    .sort({ createdAt: -1 })
-    .lean();
-  if (list.length === 0) {
-    list = (DEMO_FORM_SUBMISSIONS[req.params.id] ?? []) as typeof list;
-  }
-  res.json(list);
-});
-
-// Submit form (field workers / any authenticated user with activities can submit). Optional lat/lng for geotagging.
-router.post('/:id/submit', requireRole('form-builder', 'activities'), async (req: AuthRequest, res) => {
-  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
-  const form = await Form.findById(req.params.id);
-  if (!form) return res.status(404).json({ message: 'Form not found' });
-  if (form.status !== 'active') return res.status(400).json({ message: 'Form is not accepting submissions' });
-  const { data: bodyData, lat, lng, ...rest } = req.body as { data?: Record<string, unknown>; lat?: number; lng?: number; [k: string]: unknown };
-  const data = bodyData ?? rest;
-  if (!isDBConnected()) {
-    const synthetic = {
-      _id: `demo-sub-${Date.now()}`,
-      form: req.params.id,
-      submittedBy: { _id: req.user.id, name: req.user.name },
-      data,
-      lat: lat != null ? Number(lat) : undefined,
-      lng: lng != null ? Number(lng) : undefined,
-    };
-    return res.status(201).json(synthetic);
-  }
-  const doc = await FormSubmission.create({
-    form: req.params.id,
-    submittedBy: req.user.id,
-    data,
-    ...(lat != null && !Number.isNaN(Number(lat)) && { lat: Number(lat) }),
-    ...(lng != null && !Number.isNaN(Number(lng)) && { lng: Number(lng) }),
-  });
-  res.status(201).json(doc);
 });
 
 export const formRoutes = router;

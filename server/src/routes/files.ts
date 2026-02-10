@@ -21,19 +21,26 @@ const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.use(requireAuth);
 
-/** List documents with optional filter by refModel (Project, Donor) and refId */
+/** List documents with optional filter by refModel, refId, documentType, tags */
 router.get('/', requireRole('programs', 'donor-mgmt', 'dashboard', 'reports', 'documents'), async (req: AuthRequest, res) => {
   const refModel = (req.query.refModel as string)?.trim();
   const refId = (req.query.refId as string)?.trim();
+  const documentType = (req.query.documentType as string)?.trim();
+  const tagsStr = (req.query.tags as string)?.trim();
   if (!isDBConnected()) {
     let list = [...DEMO_FILES];
     if (refModel) list = list.filter((f) => f.refModel === refModel);
     if (refId) list = list.filter((f) => f.refId === refId);
     return res.json(list);
   }
-  const q: Record<string, string> = {};
+  const q: Record<string, unknown> = {};
   if (refModel) q.refModel = refModel;
   if (refId) q.refId = refId;
+  if (documentType) q.documentType = documentType;
+  if (tagsStr) {
+    const tagList = tagsStr.split(',').map((t) => t.trim()).filter(Boolean);
+    if (tagList.length) q.tags = { $in: tagList };
+  }
   try {
     const list = await FileAttachment.find(q).sort({ createdAt: -1 }).limit(500).lean();
     res.json(list.map((f) => ({ _id: f._id.toString(), originalName: f.originalName, mimeType: f.mimeType, size: f.size, refModel: f.refModel, refId: f.refId, documentType: (f as { documentType?: string }).documentType, tags: (f as { tags?: string[] }).tags, createdAt: f.createdAt })));

@@ -37,6 +37,7 @@ export function AttendanceScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [teamDateFilter, setTeamDateFilter] = useState<'all' | 'today'>('all');
   const today = new Date().toISOString().slice(0, 10);
   const showTeam = user?.type !== 'employee';
 
@@ -52,14 +53,15 @@ export function AttendanceScreen() {
       setTodayRecord(null);
     }
     if (showTeam) {
-      const teamRes = await api.get<Attendance[]>('/attendance');
+      const teamUrl = teamDateFilter === 'today' ? `/attendance?date=${today}` : '/attendance';
+      const teamRes = await api.get<Attendance[]>(teamUrl);
       setTeamList(teamRes.ok && Array.isArray(teamRes.data) ? teamRes.data : []);
     }
   };
 
   useEffect(() => {
     load().finally(() => setLoading(false));
-  }, [showTeam]);
+  }, [showTeam, teamDateFilter]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -191,6 +193,14 @@ export function AttendanceScreen() {
       {showTeam && (
         <>
           <Text style={styles.sectionTitle}>Team attendance</Text>
+          <View style={styles.filterRow}>
+            <TouchableOpacity style={[styles.filterChip, teamDateFilter === 'all' && styles.filterChipSel]} onPress={() => setTeamDateFilter('all')}>
+              <Text style={[styles.filterChipText, teamDateFilter === 'all' && styles.filterChipTextSel]}>All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.filterChip, teamDateFilter === 'today' && styles.filterChipSel]} onPress={() => setTeamDateFilter('today')}>
+              <Text style={[styles.filterChipText, teamDateFilter === 'today' && styles.filterChipTextSel]}>Today</Text>
+            </TouchableOpacity>
+          </View>
           {teamList.length === 0 ? (
             <Text style={styles.muted}>No team records yet.</Text>
           ) : (
@@ -228,6 +238,11 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#2E3192', borderRadius: 8, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  filterRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: '#edf2f7' },
+  filterChipSel: { backgroundColor: '#2E3192' },
+  filterChipText: { fontSize: 14, color: '#4a5568' },
+  filterChipTextSel: { color: '#fff' },
   teamCard: { backgroundColor: '#fff', borderRadius: 8, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
   teamName: { fontSize: 16, fontWeight: '600', color: '#1a202c', marginBottom: 4 },
   meta: { fontSize: 13, color: '#718096', marginBottom: 8 },

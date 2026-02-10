@@ -21,9 +21,12 @@ type Report = {
   createdAt: string;
 };
 
+const REPORT_TYPES = ['Quarterly', 'Donor', 'Annual', 'Summary', 'Budget', 'Activity'] as const;
+
 export function ReportsPage() {
   const { selectedProjectId, setSelectedProjectId } = useProgramFilter();
   const [projectFilter, setProjectFilter] = useState(selectedProjectId);
+  const [typeFilter, setTypeFilter] = useState('');
   const [modal, setModal] = useState(false);
   const queryClient = useQueryClient();
   const { data: projects = [] } = useProjects();
@@ -35,11 +38,13 @@ export function ReportsPage() {
     setSelectedProjectId(id);
   };
   const { data: list = [], isLoading } = useQuery({
-    queryKey: ['reports', projectFilter],
+    queryKey: ['reports', projectFilter, typeFilter],
     queryFn: async () => {
-      const params = projectFilter ? { project: projectFilter } : {};
+      const params: Record<string, string> = {};
+      if (projectFilter) params.project = projectFilter;
+      if (typeFilter) params.type = typeFilter;
       const res = await api.get<Report[]>('/reports', { params });
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
   });
 
@@ -61,6 +66,10 @@ export function ReportsPage() {
         <select value={projectFilter} onChange={(e) => onFilterChange(e.target.value)} style={{ padding: 10, border: '1px solid #e2e8f0', borderRadius: 6 }}>
           <option value="">All Projects</option>
           {projects.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+        </select>
+        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{ padding: 10, border: '1px solid #e2e8f0', borderRadius: 6 }}>
+          <option value="">All types</option>
+          {REPORT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
       <DataTable<Report>
@@ -115,7 +124,7 @@ export function ReportsPage() {
             style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
           >
             <label>Report Name * <input name="name" required placeholder="e.g. Q4 2024 Summary" style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} /></label>
-            <label>Type <select name="type" style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }}><option>Summary</option><option>Budget</option><option>Activity</option><option>Donor</option></select></label>
+            <label>Report type <select name="type" style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }}>{REPORT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
             <label>Project <select name="project" style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }}><option value="">All</option>{projects.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}</select></label>
             <label>Period From <input name="periodStart" type="date" defaultValue={new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10)} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} /></label>
             <label>Period To <input name="periodEnd" type="date" defaultValue={new Date().toISOString().slice(0, 10)} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} /></label>

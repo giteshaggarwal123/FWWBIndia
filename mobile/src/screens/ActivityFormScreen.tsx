@@ -24,6 +24,8 @@ type Activity = {
   actualParticipants?: number;
   quarter?: string;
   budgetHead?: string;
+  startDate?: string;
+  endDate?: string;
 };
 
 const STATUS_OPTIONS = ['planned', 'in-progress', 'completed', 'delayed'];
@@ -51,13 +53,25 @@ export function ActivityFormScreen({
   const [actualParticipants, setActualParticipants] = useState(
     edit?.actualParticipants?.toString() ?? ''
   );
+  const [budgetHead, setBudgetHead] = useState(edit?.budgetHead ?? '');
+  const [quarter, setQuarter] = useState(edit?.quarter ?? '');
+  const [startDate, setStartDate] = useState(
+    edit?.startDate ? String(edit.startDate).slice(0, 10) : ''
+  );
+  const [endDate, setEndDate] = useState(
+    edit?.endDate ? String(edit.endDate).slice(0, 10) : ''
+  );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const res = await api.get<Project[]>('/projects');
-      if (res.ok && Array.isArray(res.data)) setProjects(res.data);
-      if (!projectId && res.data?.length) setProjectId(res.data[0]._id);
+      try {
+        const res = await api.get<Project[]>('/projects');
+        if (Array.isArray(res.data)) {
+          setProjects(res.data);
+          if (!projectId && res.data.length) setProjectId(res.data[0]._id);
+        }
+      } catch {}
     })();
   }, []);
 
@@ -80,6 +94,10 @@ export function ActivityFormScreen({
       location: location.trim() || undefined,
       expectedParticipants: expectedParticipants ? Number(expectedParticipants) : undefined,
       actualParticipants: actualParticipants ? Number(actualParticipants) : undefined,
+      budgetHead: budgetHead.trim() || undefined,
+      quarter: quarter.trim() || undefined,
+      startDate: startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: endDate ? new Date(endDate).toISOString() : undefined,
     };
     if (edit?._id) {
       const res = await api.patch(`/activities/${edit._id}`, body);
@@ -147,6 +165,39 @@ export function ActivityFormScreen({
             <Text style={[styles.chipText, status === s && styles.chipTextSelected]}>{s}</Text>
           </TouchableOpacity>
         ))}
+      </View>
+      <Text style={styles.label}>Budget head (optional)</Text>
+      <TextInput
+        style={styles.input}
+        value={budgetHead}
+        onChangeText={setBudgetHead}
+        placeholder="Match budget line head"
+        placeholderTextColor="#718096"
+      />
+      <Text style={styles.label}>Quarter (optional)</Text>
+      <TextInput
+        style={styles.input}
+        value={quarter}
+        onChangeText={setQuarter}
+        placeholder="e.g. Q1 FY24-25"
+        placeholderTextColor="#718096"
+      />
+      <Text style={styles.label}>Start / End date (optional)</Text>
+      <View style={styles.row}>
+        <TextInput
+          style={[styles.input, styles.half]}
+          value={startDate}
+          onChangeText={setStartDate}
+          placeholder="Start YYYY-MM-DD"
+          placeholderTextColor="#718096"
+        />
+        <TextInput
+          style={[styles.input, styles.half]}
+          value={endDate}
+          onChangeText={setEndDate}
+          placeholder="End YYYY-MM-DD"
+          placeholderTextColor="#718096"
+        />
       </View>
       <Text style={styles.label}>Location</Text>
       <TextInput

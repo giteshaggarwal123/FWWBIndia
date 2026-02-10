@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { DashboardPage } from './pages/DashboardPage';
@@ -39,6 +40,17 @@ import { DocumentsPage } from './pages/DocumentsPage';
 import { useAuth } from './hooks/useAuth';
 import { ProgramFilterProvider } from './context/ProgramFilterContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { MutationErrorToast } from './components/MutationErrorToast';
+import { getModuleKeyByPath, getFirstAllowedPath } from './config/nav';
+
+/** Scroll window to top whenever the route (module) changes. */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -53,10 +65,30 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Redirect to dashboard if allowed, else first allowed module (e.g. employee → ess, donor → donor-portal). */
+function DefaultRedirect() {
+  const { hasPermission } = useAuth();
+  const target = hasPermission('dashboard') ? '/dashboard' : getFirstAllowedPath(hasPermission);
+  return <Navigate to={target} replace />;
+}
+
+/** Gate route by module permission; redirect to first allowed path if no access. */
+function RequireModulePermission({ children }: { children: React.ReactNode }) {
+  const { hasPermission } = useAuth();
+  const { pathname } = useLocation();
+  const key = getModuleKeyByPath(pathname);
+  if (key && !hasPermission(key)) {
+    return <Navigate to={getFirstAllowedPath(hasPermission)} replace />;
+  }
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <MutationErrorToast />
+        <ScrollToTop />
         <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route
@@ -69,42 +101,42 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="approvals" element={<ApprovalsPage />} />
-          <Route path="analytics" element={<AnalyticsPage />} />
-          <Route path="donor-portal" element={<DonorPortalPage />} />
-          <Route path="donor-portal/program/:id" element={<DonorProgramDetailPage />} />
-          <Route path="donor-mgmt" element={<DonorManagementPage />} />
-          <Route path="user-mgmt" element={<UserManagementPage />} />
-          <Route path="audit" element={<AuditLogPage />} />
-          <Route path="partners" element={<PartnerManagementPage />} />
-          <Route path="lfa" element={<LFAPage />} />
-          <Route path="beneficiaries" element={<BeneficiariesPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="programs" element={<ProgramsPage />} />
-          <Route path="activities" element={<ActivitiesPage />} />
-          <Route path="budget" element={<BudgetPage />} />
-          <Route path="expenses" element={<ExpensesPage />} />
-          <Route path="monitoring" element={<MonitoringPage />} />
-          <Route path="reports" element={<ReportsPage />} />
-          <Route path="documents" element={<DocumentsPage />} />
-          <Route path="form-builder" element={<FormBuilderPage />} />
-          <Route path="recruitment" element={<RecruitmentPage />} />
-          <Route path="employees" element={<EmployeesPage />} />
-          <Route path="attendance" element={<AttendancePage />} />
-          <Route path="leave" element={<LeavePage />} />
-          <Route path="performance" element={<PerformancePage />} />
-          <Route path="payroll" element={<PayrollPage />} />
-          <Route path="engagement" element={<EngagementPage />} />
-          <Route path="calendar" element={<CalendarPage />} />
-          <Route path="letters" element={<LettersPage />} />
-          <Route path="ess" element={<ESSPage />} />
-          <Route path="assets" element={<AssetsPage />} />
-          <Route path="insurance" element={<InsurancePage />} />
-          <Route path="travel" element={<TravelPage />} />
-          <Route path="stationery" element={<StationeryPage />} />
-          <Route path="admin-expenses" element={<AdminExpensesPage />} />
+          <Route index element={<DefaultRedirect />} />
+          <Route path="dashboard" element={<RequireModulePermission><DashboardPage /></RequireModulePermission>} />
+          <Route path="approvals" element={<RequireModulePermission><ApprovalsPage /></RequireModulePermission>} />
+          <Route path="analytics" element={<RequireModulePermission><AnalyticsPage /></RequireModulePermission>} />
+          <Route path="donor-portal" element={<RequireModulePermission><DonorPortalPage /></RequireModulePermission>} />
+          <Route path="donor-portal/program/:id" element={<RequireModulePermission><DonorProgramDetailPage /></RequireModulePermission>} />
+          <Route path="donor-mgmt" element={<RequireModulePermission><DonorManagementPage /></RequireModulePermission>} />
+          <Route path="user-mgmt" element={<RequireModulePermission><UserManagementPage /></RequireModulePermission>} />
+          <Route path="audit" element={<RequireModulePermission><AuditLogPage /></RequireModulePermission>} />
+          <Route path="partners" element={<RequireModulePermission><PartnerManagementPage /></RequireModulePermission>} />
+          <Route path="lfa" element={<RequireModulePermission><LFAPage /></RequireModulePermission>} />
+          <Route path="beneficiaries" element={<RequireModulePermission><BeneficiariesPage /></RequireModulePermission>} />
+          <Route path="settings" element={<RequireModulePermission><SettingsPage /></RequireModulePermission>} />
+          <Route path="programs" element={<RequireModulePermission><ProgramsPage /></RequireModulePermission>} />
+          <Route path="activities" element={<RequireModulePermission><ActivitiesPage /></RequireModulePermission>} />
+          <Route path="budget" element={<RequireModulePermission><BudgetPage /></RequireModulePermission>} />
+          <Route path="expenses" element={<RequireModulePermission><ExpensesPage /></RequireModulePermission>} />
+          <Route path="monitoring" element={<RequireModulePermission><MonitoringPage /></RequireModulePermission>} />
+          <Route path="reports" element={<RequireModulePermission><ReportsPage /></RequireModulePermission>} />
+          <Route path="documents" element={<RequireModulePermission><DocumentsPage /></RequireModulePermission>} />
+          <Route path="form-builder" element={<RequireModulePermission><FormBuilderPage /></RequireModulePermission>} />
+          <Route path="recruitment" element={<RequireModulePermission><RecruitmentPage /></RequireModulePermission>} />
+          <Route path="employees" element={<RequireModulePermission><EmployeesPage /></RequireModulePermission>} />
+          <Route path="attendance" element={<RequireModulePermission><AttendancePage /></RequireModulePermission>} />
+          <Route path="leave" element={<RequireModulePermission><LeavePage /></RequireModulePermission>} />
+          <Route path="performance" element={<RequireModulePermission><PerformancePage /></RequireModulePermission>} />
+          <Route path="payroll" element={<RequireModulePermission><PayrollPage /></RequireModulePermission>} />
+          <Route path="engagement" element={<RequireModulePermission><EngagementPage /></RequireModulePermission>} />
+          <Route path="calendar" element={<RequireModulePermission><CalendarPage /></RequireModulePermission>} />
+          <Route path="letters" element={<RequireModulePermission><LettersPage /></RequireModulePermission>} />
+          <Route path="ess" element={<RequireModulePermission><ESSPage /></RequireModulePermission>} />
+          <Route path="assets" element={<RequireModulePermission><AssetsPage /></RequireModulePermission>} />
+          <Route path="insurance" element={<RequireModulePermission><InsurancePage /></RequireModulePermission>} />
+          <Route path="travel" element={<RequireModulePermission><TravelPage /></RequireModulePermission>} />
+          <Route path="stationery" element={<RequireModulePermission><StationeryPage /></RequireModulePermission>} />
+          <Route path="admin-expenses" element={<RequireModulePermission><AdminExpensesPage /></RequireModulePermission>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

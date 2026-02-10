@@ -31,7 +31,7 @@ export function LeavePage() {
     queryKey: ['leave'],
     queryFn: async () => {
       const res = await api.get<Leave[]>('/leave');
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
   });
 
@@ -46,10 +46,11 @@ export function LeavePage() {
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => api.patch<Leave>(`/leave/${id}`, { status }),
     onSuccess: (res) => {
-      const data = res.data;
+      const data = res?.data;
+      if (!data || !(data as Leave)._id) return;
       queryClient.setQueriesData({ queryKey: ['leave'] }, (old: Leave[] | undefined) => {
         if (!old) return old;
-        return old.map((l) => l._id === data._id ? { ...l, ...data } : l);
+        return old.map((l) => l._id === (data as Leave)._id ? { ...l, ...(data as Leave) } : l);
       });
     },
   });

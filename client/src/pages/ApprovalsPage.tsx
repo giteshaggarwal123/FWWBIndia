@@ -11,7 +11,7 @@ export function ApprovalsPage() {
     queryKey: ['leave', 'pending'],
     queryFn: async () => {
       const res = await api.get<{ _id: string }[]>('/leave', { params: { status: 'pending' } });
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
     enabled: !!approval?.leave,
   });
@@ -19,7 +19,7 @@ export function ApprovalsPage() {
     queryKey: ['expenses', 'pending'],
     queryFn: async () => {
       const res = await api.get<{ _id: string; status: string }[]>('/expenses');
-      return res.data.filter((e) => e.status === 'submitted' || e.status === 'verified');
+      return Array.isArray(res.data) ? res.data.filter((e) => e.status === 'submitted' || e.status === 'verified') : [];
     },
     enabled: !!(approval?.expenseVerify || approval?.expenseApprove),
   });
@@ -27,7 +27,7 @@ export function ApprovalsPage() {
     queryKey: ['admin-expenses', 'pending'],
     queryFn: async () => {
       const res = await api.get<{ _id: string }[]>('/admin-expenses', { params: { status: 'pending' } });
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
     enabled: !!approval?.adminExpense,
   });
@@ -35,7 +35,7 @@ export function ApprovalsPage() {
     queryKey: ['travel', 'pending'],
     queryFn: async () => {
       const res = await api.get<{ _id: string }[]>('/travel', { params: { status: 'pending' } });
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
     enabled: !!approval?.travel,
   });
@@ -43,7 +43,7 @@ export function ApprovalsPage() {
     queryKey: ['stationery', 'pending'],
     queryFn: async () => {
       const res = await api.get<{ _id: string }[]>('/stationery', { params: { status: 'pending' } });
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
     enabled: !!approval?.stationery,
   });

@@ -7,10 +7,12 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { api } from '../api/client';
 
 type ProjectRef = { _id: string; name?: string };
+type Project = { _id: string; name: string };
 type ActivityRef = { _id: string; name?: string };
 type MonitoringEntry = {
   _id: string;
@@ -27,17 +29,23 @@ type MonitoringEntry = {
 
 export function MonitoringScreen({ navigation }: { navigation: { navigate: (a: string) => void } }) {
   const [list, setList] = useState<MonitoringEntry[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectFilter, setProjectFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = async () => {
-    const res = await api.get<MonitoringEntry[]>('/monitoring');
-    if (res.ok && Array.isArray(res.data)) setList(res.data);
+    const [monRes, projRes] = await Promise.all([
+      api.get<MonitoringEntry[]>(projectFilter ? `/monitoring?project=${projectFilter}` : '/monitoring'),
+      api.get<Project[]>('/projects'),
+    ]);
+    if (monRes.ok && Array.isArray(monRes.data)) setList(monRes.data);
+    if (projRes.ok && Array.isArray(projRes.data)) setProjects(projRes.data);
   };
 
   useEffect(() => {
     load().finally(() => setLoading(false));
-  }, []);
+  }, [projectFilter]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -60,6 +68,16 @@ export function MonitoringScreen({ navigation }: { navigation: { navigate: (a: s
 
   return (
     <View style={styles.container}>
+      <ScrollView horizontal style={styles.filterRow} contentContainerStyle={styles.filterRowContent} showsHorizontalScrollIndicator={false}>
+        <TouchableOpacity style={[styles.chip, !projectFilter && styles.chipSelected]} onPress={() => setProjectFilter('')}>
+          <Text style={[styles.chipText, !projectFilter && styles.chipTextSelected]}>All projects</Text>
+        </TouchableOpacity>
+        {projects.map((p) => (
+          <TouchableOpacity key={p._id} style={[styles.chip, projectFilter === p._id && styles.chipSelected]} onPress={() => setProjectFilter(p._id)}>
+            <Text style={[styles.chipText, projectFilter === p._id && styles.chipTextSelected]} numberOfLines={1}>{p.name}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('MonitoringForm')}
@@ -94,6 +112,12 @@ export function MonitoringScreen({ navigation }: { navigation: { navigate: (a: s
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  filterRow: { maxHeight: 44, marginHorizontal: 16, marginBottom: 8 },
+  filterRowContent: { gap: 8, alignItems: 'center', paddingVertical: 4 },
+  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#edf2f7' },
+  chipSelected: { backgroundColor: '#2E3192' },
+  chipText: { fontSize: 14, color: '#4a5568' },
+  chipTextSelected: { color: '#fff' },
   list: { padding: 16, paddingBottom: 80 },
   card: {
     backgroundColor: '#fff',

@@ -79,9 +79,13 @@ export function MonitoringFormScreen({
       return;
     }
     (async () => {
-      const res = await api.get<Activity[]>(`/activities?project=${projectId}`);
-      if (res.ok && Array.isArray(res.data)) setActivities(res.data);
-      else setActivities([]);
+      try {
+        const res = await api.get<Activity[] | { data: Activity[] }>(`/activities?project=${projectId}`);
+        const list = Array.isArray(res.data) ? res.data : (res.data && typeof res.data === 'object' && 'data' in res.data ? (res.data as { data: Activity[] }).data : []);
+        setActivities(Array.isArray(list) ? list : []);
+      } catch {
+        setActivities([]);
+      }
     })();
   }, [projectId]);
 

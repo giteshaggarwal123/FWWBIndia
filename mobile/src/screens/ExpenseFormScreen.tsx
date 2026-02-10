@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { api } from '../api/client';
+import * as DocumentPicker from 'expo-document-picker';
+import { api, uploadFile } from '../api/client';
 
 type Project = { _id: string; name: string };
 type Activity = { _id: string; name: string };
@@ -22,6 +23,7 @@ type Expense = {
   category?: string;
   description?: string;
   date?: string;
+  budgetHead?: string;
 };
 
 const CATEGORIES = [
@@ -60,29 +62,50 @@ export function ExpenseFormScreen({
       ? new Date(edit.date).toISOString().slice(0, 10)
       : new Date().toISOString().slice(0, 10)
   );
+  const [budgetHead, setBudgetHead] = useState(edit?.budgetHead ?? '');
   const [saving, setSaving] = useState(false);
+  const [billFile, setBillFile] = useState<{ uri: string; name: string; mimeType: string } | null>(null);
 
   useEffect(() => {
     (async () => {
-      const [pRes, aRes] = await Promise.all([
-        api.get<Project[]>('/projects'),
-        api.get<Activity[]>('/activities'),
-      ]);
-      if (pRes.ok && Array.isArray(pRes.data)) {
-        setProjects(pRes.data);
-        if (!projectId && pRes.data.length) setProjectId(pRes.data[0]._id);
-      }
-      if (aRes.ok && Array.isArray(aRes.data)) setActivities(aRes.data);
+      try {
+        const [pRes, aRes] = await Promise.all([
+          api.get<Project[]>('/projects'),
+          api.get<Activity[] | { data: Activity[] }>('/activities'),
+        ]);
+        if (Array.isArray(pRes.data)) {
+          setProjects(pRes.data);
+          if (!projectId && pRes.data.length) setProjectId(pRes.data[0]._id);
+        }
+        const actList = Array.isArray(aRes.data) ? aRes.data : (aRes.data as { data?: Activity[] })?.data ?? [];
+        if (Array.isArray(actList)) setActivities(actList);
+      } catch {}
     })();
   }, []);
 
   useEffect(() => {
     if (!projectId) return;
     (async () => {
-      const res = await api.get<Activity[]>(`/activities?project=${projectId}`);
-      if (res.ok && Array.isArray(res.data)) setActivities(res.data);
+      try {
+        const res = await api.get<Activity[] | { data: Activity[] }>(`/activities?project=${projectId}`);
+        const list = Array.isArray(res.data) ? res.data : (res.data as { data?: Activity[] })?.data ?? [];
+        setActivities(list);
+      } catch {
+        setActivities([]);
+      }
     })();
   }, [projectId]);
+
+  const pickBill = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+      if (result.canceled) return;
+      const f = result.assets[0];
+      setBillFile({ uri: f.uri, name: f.name ?? 'bill', mimeType: f.mimeType ?? 'application/octet-stream' });
+    } catch {
+      Alert.alert('Error', 'Could not open file picker');
+    }
+  };
 
   const handleSave = async () => {
     if (!projectId) {
@@ -104,17 +127,32 @@ export function ExpenseFormScreen({
       description: description.trim(),
       date: new Date(date).toISOString(),
       status: edit?.status ?? 'submitted',
+      budgetHead: budgetHead.trim() || undefined,
     };
     if (edit?._id) {
-      const res = await api.patch(`/expenses/${edit._id}`, body);
+      const res = await api.patch<Expense>(`/expenses/${edit._id}`, body);
       setSaving(false);
-      if (res.ok) navigation.goBack();
-      else Alert.alert('Error', 'Failed to update expense');
+      if (res.ok) {
+        if (billFile) {
+          const up = await uploadFile(billFile.uri, billFile.name, billFile.mimeType, 'Expense', edit._id);
+          if (!up.ok) Alert.alert('Note', 'Expense saved but bill upload failed.');
+        }
+        navigation.goBack();
+      } else {
+        Alert.alert('Error', 'Failed to update expense');
+      }
     } else {
-      const res = await api.post('/expenses', body);
+      const res = await api.post<Expense>('/expenses', body);
       setSaving(false);
-      if (res.ok) navigation.goBack();
-      else Alert.alert('Error', 'Failed to create expense');
+      if (res.ok && res.data?._id) {
+        if (billFile) {
+          const up = await uploadFile(billFile.uri, billFile.name, billFile.mimeType, 'Expense', res.data._id);
+          if (!up.ok) Alert.alert('Note', 'Expense saved but bill upload failed.');
+        }
+        navigation.goBack();
+      } else {
+        Alert.alert('Error', 'Failed to create expense');
+      }
     }
   };
 
@@ -177,6 +215,14 @@ export function ExpenseFormScreen({
           </TouchableOpacity>
         ))}
       </View>
+      <Text style={styles.label}>Budget head (optional)</Text>
+      <TextInput
+        style={styles.input}
+        value={budgetHead}
+        onChangeText={setBudgetHead}
+        placeholder="Match budget line for utilization"
+        placeholderTextColor="#718096"
+      />
       <Text style={styles.label}>Description</Text>
       <TextInput
         style={[styles.input, styles.textArea]}
@@ -194,6 +240,15 @@ export function ExpenseFormScreen({
         placeholder="YYYY-MM-DD"
         placeholderTextColor="#718096"
       />
+      <Text style={styles.label}>Attach bill / receipt (optional)</Text>
+      <TouchableOpacity style={styles.attachBtn} onPress={pickBill}>
+        <Text style={styles.attachBtnText}>{billFile ? `Selected: ${billFile.name}` : 'Pick file'}</Text>
+      </TouchableOpacity>
+      {billFile ? (
+        <TouchableOpacity onPress={() => setBillFile(null)}>
+          <Text style={styles.removeFile}>Remove attachment</Text>
+        </TouchableOpacity>
+      ) : null}
       <TouchableOpacity
         style={[styles.button, saving && styles.buttonDisabled]}
         onPress={handleSave}
@@ -243,4 +298,7 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  attachBtn: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 8 },
+  attachBtnText: { fontSize: 14, color: '#4a5568' },
+  removeFile: { fontSize: 12, color: '#e53e3e', marginBottom: 16 },
 });

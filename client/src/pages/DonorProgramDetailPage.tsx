@@ -10,11 +10,12 @@ type ProgramDetail = {
   budgets: { head: string; allocated: number; utilized: number }[];
   expenses: { expenseId: string; amount: number; category: string; status: string }[];
   summary: { allocated: number; utilized: number; utilizationPercent: number };
+  beneficiaries?: { totalCount: number; byType: { type: string; count: number }[] };
 };
 
 export function DonorProgramDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['donor-portal', 'program', id],
     queryFn: async () => {
       const res = await api.get<ProgramDetail>(`/donor-portal/programs/${id}`);
@@ -24,9 +25,14 @@ export function DonorProgramDetailPage() {
   });
 
   if (!id) return <div>Invalid program</div>;
-  if (isLoading || !data) return <div>Loading...</div>;
+  if (isLoading) return <div>Loading...</div>;
+  if (isError || !data) {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    return <div style={{ padding: 24 }}>{status === 404 ? 'Program not found.' : 'Failed to load program. Please try again.'}</div>;
+  }
 
-  const { project, activities, budgets, expenses, summary } = data;
+  const { project, activities, budgets, expenses, summary, beneficiaries } = data;
+  const beneficiarySummary = beneficiaries ?? { totalCount: 0, byType: [] };
 
   return (
     <div>
@@ -48,6 +54,19 @@ export function DonorProgramDetailPage() {
           <div><strong>{summary.utilizationPercent || 0}%</strong> utilized</div>
         </div>
       </div>
+      {beneficiarySummary.totalCount > 0 && (
+        <div style={{ marginBottom: 24, background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: 16 }}>
+          <h3 style={{ marginBottom: 12 }}>Beneficiaries / Impact</h3>
+          <p style={{ margin: '0 0 8px 0', fontSize: 16, fontWeight: 600 }}>Total beneficiaries: {beneficiarySummary.totalCount}</p>
+          {beneficiarySummary.byType.length > 0 && (
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {beneficiarySummary.byType.map((b) => (
+                <li key={b.type}>{b.type}: {b.count}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       <div style={{ marginBottom: 24 }}>
         <h3 style={{ marginBottom: 12 }}>Budget heads</h3>
         <DataTable

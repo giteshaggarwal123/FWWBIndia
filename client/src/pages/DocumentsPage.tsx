@@ -14,15 +14,22 @@ type DocRow = {
   size: number;
   refModel?: string;
   refId?: string;
+  documentType?: string;
+  tags?: string[];
   createdAt: string;
 };
 
-const API_BASE = '';
+const API_BASE = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
+const DOCUMENT_TYPES = ['proposal', 'agreement', 'report', 'audit', 'fcra', 'other'];
 
 export function DocumentsPage() {
   const { selectedProjectId, setSelectedProjectId } = useProgramFilter();
   const [refModel, setRefModel] = useState('Project');
   const [refId, setRefId] = useState(selectedProjectId);
+  const [documentType, setDocumentType] = useState('');
+  const [tagsFilter, setTagsFilter] = useState('');
+  const [uploadDocType, setUploadDocType] = useState('other');
+  const [uploadTags, setUploadTags] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { data: projects = [] } = useProjects();
@@ -36,11 +43,13 @@ export function DocumentsPage() {
   };
 
   const { data: list = [], isLoading } = useQuery({
-    queryKey: ['files', refModel, refId],
+    queryKey: ['files', refModel, refId, documentType, tagsFilter],
     queryFn: async () => {
       const params: Record<string, string> = {};
       if (refModel) params.refModel = refModel;
       if (refId) params.refId = refId;
+      if (documentType) params.documentType = documentType;
+      if (tagsFilter) params.tags = tagsFilter;
       const res = await api.get<DocRow[]>('/files', { params });
       return Array.isArray(res.data) ? res.data : [];
     },
@@ -48,7 +57,8 @@ export function DocumentsPage() {
 
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const res = await fetch(`${API_BASE}/api/files/upload`, {
+      const base = API_BASE || (typeof window !== 'undefined' ? window.location.origin : '');
+      const res = await fetch(`${base}/api/files/upload`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -70,10 +80,15 @@ export function DocumentsPage() {
     formData.append('file', input.files[0]);
     if (refModel) formData.append('refModel', refModel);
     if (refId) formData.append('refId', refId);
+    formData.append('documentType', uploadDocType);
+    if (uploadTags.trim()) formData.append('tags', uploadTags.trim());
     uploadMutation.mutate(formData);
   };
 
-  const downloadUrl = (id: string) => `${API_BASE}/api/files/${id}`;
+  const downloadUrl = (id: string) => {
+    const base = API_BASE || (typeof window !== 'undefined' ? window.location.origin : '');
+    return `${base}/api/files/${id}`;
+  };
 
   return (
     <div>
@@ -110,6 +125,12 @@ export function DocumentsPage() {
               ))}
             </select>
           )}
+          <select value={uploadDocType} onChange={(e) => setUploadDocType(e.target.value)} style={{ padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }}>
+            {DOCUMENT_TYPES.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          <input type="text" value={uploadTags} onChange={(e) => setUploadTags(e.target.value)} placeholder="Tags (comma-separated, e.g. FCRA, FY24-25)" style={{ padding: 8, border: '1px solid #e2e8f0', borderRadius: 6, minWidth: 220 }} />
           <button type="submit" disabled={uploadMutation.isPending} style={{ padding: '8px 16px', background: '#2E3192', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>
             {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
           </button>
@@ -126,6 +147,13 @@ export function DocumentsPage() {
             {refModel === 'Donor' && donors.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
           </select>
         )}
+        <select value={documentType} onChange={(e) => setDocumentType(e.target.value)} style={{ padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }}>
+          <option value="">All types</option>
+          {DOCUMENT_TYPES.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+        <input type="text" value={tagsFilter} onChange={(e) => setTagsFilter(e.target.value)} placeholder="Filter by tags (comma-separated)" style={{ padding: 8, border: '1px solid #e2e8f0', borderRadius: 6, minWidth: 200 }} />
       </div>
       <DataTable<DocRow>
         keyField="_id"
@@ -133,8 +161,10 @@ export function DocumentsPage() {
         loading={isLoading}
         columns={[
           { key: 'originalName', label: 'File' },
+          { key: 'documentType', label: 'Type', render: (r) => r.documentType || '—' },
           { key: 'refModel', label: 'Tag type', render: (r) => r.refModel || '—' },
           { key: 'refId', label: 'Tag id', render: (r) => r.refId || '—' },
+          { key: 'tags', label: 'Tags', render: (r) => (Array.isArray(r.tags) ? r.tags.join(', ') : '—') },
           { key: 'size', label: 'Size', render: (r) => (r.size ? `${(r.size / 1024).toFixed(1)} KB` : '—') },
           { key: 'createdAt', label: 'Uploaded', render: (r) => (r.createdAt ? new Date(r.createdAt).toLocaleString() : '—') },
         ]}

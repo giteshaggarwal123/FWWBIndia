@@ -40,21 +40,27 @@ export function LeaveScreen() {
   const [days, setDays] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const showTeam = user?.type !== 'employee';
 
   const load = async () => {
-    const meRes = await api.get<Employee>('/employees/me');
-    const emp = meRes.ok && meRes.data ? meRes.data : null;
-    setEmployee(emp);
-    if (emp?._id) {
-      const leaveRes = await api.get<Leave[]>(`/leave?employee=${emp._id}`);
-      setMyList(Array.isArray(leaveRes.data) ? leaveRes.data : []);
-    } else {
+    try {
+      const meRes = await api.get<Employee>('/employees/me');
+      const emp = meRes.data ?? null;
+      setEmployee(emp);
+      if (emp?._id) {
+        const leaveRes = await api.get<Leave[]>(`/leave?employee=${emp._id}`);
+        setMyList(Array.isArray(leaveRes.data) ? leaveRes.data : []);
+      } else {
+        setMyList([]);
+      }
+      if (showTeam) {
+        const teamRes = await api.get<Leave[]>('/leave');
+        setTeamList(Array.isArray(teamRes.data) ? teamRes.data : []);
+      }
+    } catch {
       setMyList([]);
-    }
-    if (showTeam) {
-      const teamRes = await api.get<Leave[]>('/leave');
-      setTeamList(teamRes.ok && Array.isArray(teamRes.data) ? teamRes.data : []);
+      setTeamList([]);
     }
   };
 
@@ -79,25 +85,45 @@ export function LeaveScreen() {
       return;
     }
     setSubmitting(true);
-    const res = await api.post('/leave', {
-      employee: employee._id,
-      leaveType,
-      fromDate: new Date(fromDate).toISOString(),
-      toDate: new Date(toDate).toISOString(),
-      days: d,
-      reason: reason.trim() || undefined,
-      status: 'pending',
-    });
-    setSubmitting(false);
-    if (res.ok) {
-      setShowApply(false);
-      setFromDate('');
-      setToDate('');
-      setDays('');
-      setReason('');
-      await load();
-    } else {
-      Alert.alert('Error', 'Could not submit leave request.');
+    try {
+      const res = await api.post('/leave', {
+        employee: employee._id,
+        leaveType,
+        fromDate: new Date(fromDate).toISOString(),
+        toDate: new Date(toDate).toISOString(),
+        days: d,
+        reason: reason.trim() || undefined,
+        status: 'pending',
+      });
+      setSubmitting(false);
+      if (res.status >= 200 && res.status < 300) {
+        setShowApply(false);
+        setFromDate('');
+        setToDate('');
+        setDays('');
+        setReason('');
+        await load();
+      } else {
+        Alert.alert('Error', (res.data as { message?: string })?.message || 'Could not submit leave request.');
+      }
+    } catch (e: unknown) {
+      setSubmitting(false);
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Could not submit leave request.';
+      Alert.alert('Error', msg);
+    }
+  };
+
+  const handleApproveReject = async (leaveId: string, status: 'approved' | 'rejected') => {
+    setUpdatingId(leaveId);
+    try {
+      const res = await api.patch(`/leave/${leaveId}`, { status });
+      setUpdatingId(null);
+      if (res.status >= 200 && res.status < 300) await load();
+      else Alert.alert('Error', (res.data as { message?: string })?.message || `Failed to ${status}`);
+    } catch (e: unknown) {
+      setUpdatingId(null);
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message || `Failed to ${status}`;
+      Alert.alert('Error', msg);
     }
   };
 
@@ -170,6 +196,24 @@ export function LeaveScreen() {
               <Text style={styles.meta}>{item.leaveType} · {item.days} day(s)</Text>
               <Text style={styles.dates}>{formatDate(item.fromDate)} – {formatDate(item.toDate)}</Text>
               <Text style={[styles.statusBadge, item.status === 'approved' && styles.statusApproved, item.status === 'rejected' && styles.statusRejected]}>{item.status}</Text>
+              {item.status === 'pending' && (
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.actionApprove]}
+                    onPress={() => handleApproveReject(item._id, 'approved')}
+                    disabled={updatingId === item._id}
+                  >
+                    <Text style={styles.actionBtnText}>Approve</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.actionReject]}
+                    onPress={() => handleApproveReject(item._id, 'rejected')}
+                    disabled={updatingId === item._id}
+                  >
+                    <Text style={styles.actionBtnText}>Reject</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           ))}
         </>
@@ -206,5 +250,10 @@ const styles = StyleSheet.create({
   teamName: { fontSize: 16, fontWeight: '600', color: '#1a202c', marginBottom: 4 },
   meta: { fontSize: 13, color: '#718096', marginBottom: 2 },
   dates: { fontSize: 13, color: '#4a5568', marginBottom: 8 },
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  actionBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 6 },
+  actionApprove: { backgroundColor: '#c6f6d5' },
+  actionReject: { backgroundColor: '#fed7d7' },
+  actionBtnText: { fontSize: 14, fontWeight: '600', color: '#1a202c' },
   webLink: { fontSize: 12, color: '#718096', marginBottom: 16, fontStyle: 'italic' },
 });

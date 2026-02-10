@@ -9,6 +9,20 @@ import { recordAudit } from './audit.js';
 
 const router = Router();
 router.use(requireAuth);
+
+/** Distinct budget heads for a project (for activities dropdown). Allowed for activities + budget. */
+router.get('/heads', requireRole('budget', 'activities', 'programs'), async (req: AuthRequest, res) => {
+  const project = (req.query.project as string)?.trim();
+  if (!project) return res.json([]);
+  if (!isDBConnected()) {
+    const list = SUPRAJA_BUDGET.filter((b) => (b.project as { _id?: string })?._id === project);
+    const heads = [...new Set(list.map((b) => b.head).filter(Boolean))];
+    return res.json(heads);
+  }
+  const list = await Budget.find({ project }).distinct('head').lean();
+  res.json(list);
+});
+
 router.use(requireRole('budget'));
 
 router.get('/', async (req: AuthRequest, res) => {

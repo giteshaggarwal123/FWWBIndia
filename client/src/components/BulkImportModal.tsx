@@ -24,7 +24,7 @@ export function BulkImportModal({ type, defaultProjectId = '', onClose, onSucces
   const parseMutation = useMutation({
     mutationFn: async (base64: string) => {
       const res = await api.post<{ sheetName: string; rows: PreviewRow[] }>('/bulk-import/parse-excel', { base64 });
-      return res.data;
+      return res.data ?? { sheetName: '', rows: [] };
     },
     onSuccess: (data) => {
       setPreview(data);
@@ -39,10 +39,10 @@ export function BulkImportModal({ type, defaultProjectId = '', onClose, onSucces
     mutationFn: async ({ projectId: pid, rows }: { projectId: string; rows: PreviewRow[] }) => {
       if (type === 'activities') {
         const res = await api.post<{ count: number; ids: string[] }>('/bulk-import/activities', { projectId: pid, sheet: 'Sheet1', rows });
-        return res.data;
+        return res.data ?? { count: 0, ids: [] };
       }
       const res = await api.post<{ count: number; ids: string[] }>('/bulk-import/expenses', { projectId: pid, rows });
-      return res.data;
+      return res.data ?? { count: 0, ids: [] };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['activities'] });
@@ -52,7 +52,7 @@ export function BulkImportModal({ type, defaultProjectId = '', onClose, onSucces
       if (fileInputRef.current) fileInputRef.current.value = '';
       onSuccess?.();
       onClose();
-      alert(`Imported ${data.count} record(s) successfully.`);
+      alert(`Imported ${data?.count ?? 0} record(s) successfully.`);
     },
     onError: (e: { response?: { data?: { message?: string } }; message?: string }) => {
       setError(e.response?.data?.message || e.message || 'Import failed');

@@ -21,22 +21,22 @@ type Generated = {
 
 async function downloadTemplate(id: string, name: string) {
   const res = await api.get<string>(`/letters/templates/${id}/download`, { responseType: 'text' });
-  const blob = new Blob([res.data], { type: 'text/plain;charset=utf-8' });
+  const blob = new Blob([res.data], { type: 'application/vnd.ms-word;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${(name || 'template').replace(/[^a-zA-Z0-9.-]/g, '_')}.txt`;
+  a.download = `${(name || 'template').replace(/[^a-zA-Z0-9.-]/g, '_')}.doc`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
 async function downloadGenerated(id: string, letterId: string) {
   const res = await api.get<string>(`/letters/generated/${id}/download`, { responseType: 'text' });
-  const blob = new Blob([res.data], { type: 'text/plain;charset=utf-8' });
+  const blob = new Blob([res.data], { type: 'application/vnd.ms-word;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Letter_${(letterId || 'export').replace(/[^a-zA-Z0-9.-]/g, '_')}.txt`;
+  a.download = `Letter_${(letterId || 'export').replace(/[^a-zA-Z0-9.-]/g, '_')}.doc`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -54,14 +54,14 @@ export function LettersPage() {
     queryKey: ['letters', 'templates'],
     queryFn: async () => {
       const res = await api.get<Template[]>('/letters/templates');
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
   });
   const { data: generated = [], isLoading: loadingGenerated } = useQuery({
     queryKey: ['letters', 'generated'],
     queryFn: async () => {
       const res = await api.get<Generated[]>('/letters/generated');
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
   });
 
@@ -127,7 +127,7 @@ export function LettersPage() {
           ]}
           actions={(row) => (
             <span>
-              <button type="button" onClick={async () => { try { const r = await api.get<{ content: string }>(`/letters/generated/${row._id}/view`); setViewTitle(`${row.letterId} - ${row.letterType}`); setViewContent(r.data.content); setModal('view'); } catch { setViewTitle(row.letterId); setViewContent('(Unable to load content)'); setModal('view'); } }} style={{ marginRight: 8, color: '#2E3192', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>View</button>
+              <button type="button" onClick={async () => { try { const r = await api.get<{ content: string }>(`/letters/generated/${row._id}/view`); setViewTitle(`${row.letterId} - ${row.letterType}`); setViewContent(r.data?.content ?? '(No content)'); setModal('view'); } catch { setViewTitle(row.letterId); setViewContent('(Unable to load content)'); setModal('view'); } }} style={{ marginRight: 8, color: '#2E3192', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>View</button>
               <button type="button" onClick={() => downloadGenerated(row._id, row.letterId)} style={{ marginRight: 8, color: '#276749', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Download</button>
               <button type="button" onClick={() => { setEditingGenerated(row); setEditingTemplate(null); setModal('edit'); }} style={{ marginRight: 8, color: '#2E3192', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Edit</button>
             </span>

@@ -20,6 +20,17 @@ type Donor = {
   programCount?: number;
 };
 
+type Grant = {
+  _id: string;
+  donor: string | { _id: string; name?: string };
+  project: string | { _id: string; name?: string };
+  amount: number;
+  periodStart: string;
+  periodEnd: string;
+  status: string;
+  notes?: string;
+};
+
 const typeOptions = ['institutional', 'individual', 'foundation', 'government'];
 const statusOptions = ['active', 'inactive'];
 
@@ -34,6 +45,12 @@ export function DonorManagementPage() {
   const [address, setAddress] = useState('');
   const [status, setStatus] = useState('active');
   const [reportingFrequency, setReportingFrequency] = useState('');
+  const [grantsDonorId, setGrantsDonorId] = useState<string | null>(null);
+  const [grantModal, setGrantModal] = useState(false);
+  const [grantProject, setGrantProject] = useState('');
+  const [grantAmount, setGrantAmount] = useState('');
+  const [grantPeriodStart, setGrantPeriodStart] = useState('');
+  const [grantPeriodEnd, setGrantPeriodEnd] = useState('');
   const queryClient = useQueryClient();
 
   const { data: donors = [], isLoading } = useQuery({
@@ -43,6 +60,22 @@ export function DonorManagementPage() {
       return Array.isArray(res.data) ? res.data : [];
     },
   });
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const res = await api.get<{ _id: string; name: string }[]>('/projects');
+      return Array.isArray(res.data) ? res.data : [];
+    },
+  });
+  const { data: grantsForDonor = [], isLoading: grantsLoading } = useQuery({
+    queryKey: ['grants', grantsDonorId],
+    queryFn: async () => {
+      if (!grantsDonorId) return [];
+      const res = await api.get<Grant[]>('/grants', { params: { donor: grantsDonorId } });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: !!grantsDonorId,
+  });
 
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/donors', body),
@@ -50,6 +83,17 @@ export function DonorManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['donors'] });
       setModal(null);
       resetForm();
+    },
+  });
+  const createGrantMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) => api.post('/grants', body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['grants'] });
+      setGrantModal(false);
+      setGrantProject('');
+      setGrantAmount('');
+      setGrantPeriodStart('');
+      setGrantPeriodEnd('');
     },
   });
   const updateMutation = useMutation({
@@ -160,23 +204,54 @@ export function DonorManagementPage() {
         ]}
         actions={(row) => (
           <span>
-            <button
-              type="button"
-              onClick={() => openEdit(row)}
-              style={{ marginRight: 8, color: '#2E3192', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDelete(row)}
-              style={{ color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}
-            >
-              Delete
-            </button>
+            <button type="button" onClick={() => { setGrantsDonorId(row._id); }} style={{ marginRight: 8, color: '#1BADE3', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Grants</button>
+            <button type="button" onClick={() => openEdit(row)} style={{ marginRight: 8, color: '#2E3192', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Edit</button>
+            <button type="button" onClick={() => handleDelete(row)} style={{ color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Delete</button>
           </span>
         )}
       />
+
+      {grantsDonorId && (
+        <div style={{ marginTop: 24, padding: 20, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+          <h3 style={{ marginTop: 0, marginBottom: 12 }}>Grants (pledge / funding)</h3>
+          <p style={{ marginBottom: 12, fontSize: 14, color: '#4a5568' }}>Donor: {donors.find((d) => d._id === grantsDonorId)?.name ?? grantsDonorId}</p>
+          <button type="button" onClick={() => setGrantModal(true)} style={{ marginBottom: 12, padding: '8px 14px', background: '#2E3192', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>+ Add Grant</button>
+          {grantsLoading && <p style={{ margin: 0 }}>Loading grants...</p>}
+          {!grantsLoading && grantsForDonor.length === 0 && <p style={{ margin: 0, color: '#718096' }}>No grants yet. Add a grant to track amount and period per program.</p>}
+          {!grantsLoading && grantsForDonor.length > 0 && (
+            <DataTable<Grant>
+              keyField="_id"
+              data={grantsForDonor}
+              columns={[
+                { key: 'project', label: 'Program', render: (r) => (r.project && typeof r.project === 'object' && 'name' in r.project ? (r.project as { name: string }).name : '-') },
+                { key: 'amount', label: 'Amount', render: (r) => `₹${Number(r.amount).toLocaleString()}` },
+                { key: 'periodStart', label: 'From', render: (r) => r.periodStart ? new Date(r.periodStart).toLocaleDateString() : '-' },
+                { key: 'periodEnd', label: 'To', render: (r) => r.periodEnd ? new Date(r.periodEnd).toLocaleDateString() : '-' },
+                { key: 'status', label: 'Status' },
+              ]}
+            />
+          )}
+          <button type="button" onClick={() => setGrantsDonorId(null)} style={{ marginTop: 12, padding: '6px 12px', background: '#e2e8f0', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Close</button>
+        </div>
+      )}
+
+      {grantModal && grantsDonorId && (
+        <Modal title="Add Grant" onClose={() => { setGrantModal(false); setGrantProject(''); setGrantAmount(''); setGrantPeriodStart(''); setGrantPeriodEnd(''); }}>
+          <form onSubmit={(e) => { e.preventDefault(); if (grantProject && grantAmount && grantPeriodStart && grantPeriodEnd) createGrantMutation.mutate({ donor: grantsDonorId, project: grantProject, amount: Number(grantAmount), periodStart: grantPeriodStart, periodEnd: grantPeriodEnd, status: 'active' }); }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <label style={{ fontWeight: 600 }}>Program * <select value={grantProject} onChange={(e) => setGrantProject(e.target.value)} required style={{ width: '100%', padding: 10, marginTop: 4, border: '1px solid #e2e8f0', borderRadius: 6 }}>
+              <option value="">Select program</option>
+              {projects.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
+            </select></label>
+            <label style={{ fontWeight: 600 }}>Amount (₹) * <input type="number" min={0} value={grantAmount} onChange={(e) => setGrantAmount(e.target.value)} required placeholder="e.g. 500000" style={{ width: '100%', padding: 10, marginTop: 4, border: '1px solid #e2e8f0', borderRadius: 6 }} /></label>
+            <label style={{ fontWeight: 600 }}>Period start * <input type="date" value={grantPeriodStart} onChange={(e) => setGrantPeriodStart(e.target.value)} required style={{ width: '100%', padding: 10, marginTop: 4, border: '1px solid #e2e8f0', borderRadius: 6 }} /></label>
+            <label style={{ fontWeight: 600 }}>Period end * <input type="date" value={grantPeriodEnd} onChange={(e) => setGrantPeriodEnd(e.target.value)} required style={{ width: '100%', padding: 10, marginTop: 4, border: '1px solid #e2e8f0', borderRadius: 6 }} /></label>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button type="submit" disabled={createGrantMutation.isPending || !grantProject || !grantAmount || !grantPeriodStart || !grantPeriodEnd} style={{ padding: '10px 20px', background: '#2E3192', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>Create</button>
+              <button type="button" onClick={() => { setGrantModal(false); setGrantProject(''); setGrantAmount(''); setGrantPeriodStart(''); setGrantPeriodEnd(''); }} style={{ padding: '10px 20px', background: '#e2e8f0', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {(modal === 'add' || modal === 'edit') && (
         <Modal title={editing ? 'Edit Donor' : 'Add Donor'} onClose={() => { setModal(null); setEditing(null); resetForm(); }}>

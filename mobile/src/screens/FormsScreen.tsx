@@ -39,6 +39,7 @@ export function FormsScreen({ navigation }: { navigation: { navigate: (a: string
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<MySubmission | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -59,7 +60,25 @@ export function FormsScreen({ navigation }: { navigation: { navigate: (a: string
     setRefreshing(true);
     await load();
     setSelectedForm(null);
+    setSelectedSubmission(null);
     setRefreshing(false);
+  };
+
+  const openSubmissionDetail = (item: MySubmission) => setSelectedSubmission(item);
+
+  const editSubmission = (item: MySubmission) => {
+    const form = list.find((f) => f._id === item.form);
+    if (!form) {
+      Alert.alert('Form not available', 'This form may have been removed. You can only view this submission.');
+      return;
+    }
+    setSelectedSubmission(null);
+    setSelectedForm(form);
+    const initial: Record<string, string> = {};
+    form.fields?.forEach((f) => { initial[f.key] = ''; });
+    const fromData = (item.data || {}) as Record<string, unknown>;
+    Object.keys(fromData).forEach((k) => { initial[k] = String(fromData[k] ?? ''); });
+    setValues(initial);
   };
 
   // Group forms by project (for multiple projects)
@@ -104,6 +123,48 @@ export function FormsScreen({ navigation }: { navigation: { navigate: (a: string
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#2E3192" />
       </View>
+    );
+  }
+
+  // Full submission detail view (view / edit)
+  if (selectedSubmission) {
+    const form = list.find((f) => f._id === selectedSubmission.form);
+    const data = (selectedSubmission.data || {}) as Record<string, unknown>;
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.detailContent}>
+        <Text style={styles.detailTitle}>{selectedSubmission.formTitle ?? 'Submission'}</Text>
+        {selectedSubmission.project?.name ? <Text style={styles.projectTag}>{selectedSubmission.project.name}</Text> : null}
+        <Text style={styles.detailDate}>
+          Submitted {new Date(selectedSubmission.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' })}{' '}
+          at {new Date(selectedSubmission.createdAt).toLocaleTimeString(undefined, { timeStyle: 'short' })}
+        </Text>
+        {selectedSubmission.submittedBy?.name ? (
+          <Text style={styles.detailBy}>By {selectedSubmission.submittedBy.name}</Text>
+        ) : null}
+        <View style={styles.detailSection}>
+          <Text style={styles.detailSectionTitle}>Responses</Text>
+          {Object.entries(data).length === 0 ? (
+            <Text style={styles.detailEmpty}>No data recorded.</Text>
+          ) : (
+            Object.entries(data).map(([key, value]) => (
+              <View key={key} style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{key.replace(/_/g, ' ')}</Text>
+                <Text style={styles.detailValue}>{String(value ?? '')}</Text>
+              </View>
+            ))
+          )}
+        </View>
+        <View style={styles.detailActions}>
+          <TouchableOpacity style={styles.detailBackBtn} onPress={() => setSelectedSubmission(null)}>
+            <Text style={styles.detailBackBtnText}>Back</Text>
+          </TouchableOpacity>
+          {form ? (
+            <TouchableOpacity style={styles.detailEditBtn} onPress={() => editSubmission(selectedSubmission)}>
+              <Text style={styles.detailEditBtnText}>Edit (resubmit)</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </ScrollView>
     );
   }
 
@@ -180,7 +241,11 @@ export function FormsScreen({ navigation }: { navigation: { navigate: (a: string
             <Text style={styles.empty}>No submissions yet. Submit forms from the &quot;Fill forms&quot; tab.</Text>
           }
           renderItem={({ item }) => (
-            <View style={styles.submissionCard}>
+            <TouchableOpacity
+              style={styles.submissionCard}
+              onPress={() => openSubmissionDetail(item)}
+              activeOpacity={0.7}
+            >
               <Text style={styles.submissionFormTitle}>{item.formTitle ?? 'Form'}</Text>
               {item.project?.name ? <Text style={styles.submissionProject}>{item.project.name}</Text> : null}
               <Text style={styles.submissionDate}>
@@ -195,7 +260,8 @@ export function FormsScreen({ navigation }: { navigation: { navigate: (a: string
                     .join(' · ')}
                 </Text>
               )}
-            </View>
+              <Text style={styles.tapHint}>Tap to view full submission</Text>
+            </TouchableOpacity>
           )}
         />
       ) : (
@@ -244,6 +310,22 @@ const styles = StyleSheet.create({
   submissionProject: { fontSize: 12, color: '#2E3192', marginBottom: 4 },
   submissionDate: { fontSize: 13, color: '#718096', marginBottom: 4 },
   submissionPreview: { fontSize: 12, color: '#4a5568', fontStyle: 'italic' },
+  tapHint: { fontSize: 11, color: '#2E3192', marginTop: 8, fontWeight: '500' },
+  detailContent: { padding: 16, paddingBottom: 32 },
+  detailTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8 },
+  detailDate: { fontSize: 14, color: '#718096', marginBottom: 4 },
+  detailBy: { fontSize: 13, color: '#4a5568', marginBottom: 16 },
+  detailSection: { marginTop: 8, marginBottom: 24 },
+  detailSectionTitle: { fontSize: 14, fontWeight: '700', color: '#2E3192', marginBottom: 12 },
+  detailRow: { marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  detailLabel: { fontSize: 12, color: '#718096', marginBottom: 4, textTransform: 'capitalize' },
+  detailValue: { fontSize: 15, color: '#1a202c', fontWeight: '500' },
+  detailEmpty: { fontSize: 14, color: '#718096', fontStyle: 'italic' },
+  detailActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  detailBackBtn: { flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0' },
+  detailBackBtnText: { color: '#4a5568', fontWeight: '600' },
+  detailEditBtn: { flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: 8, backgroundColor: '#2E3192' },
+  detailEditBtnText: { color: '#fff', fontWeight: '600' },
   formContent: { padding: 16, paddingBottom: 32 },
   formTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8 },
   projectTag: { fontSize: 12, color: '#2E3192', marginBottom: 4 },

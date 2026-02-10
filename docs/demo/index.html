@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portal Demo – Web & Mobile (Detailed)</title>
+  <style>
+    :root {
+      --primary: #2E3192;
+      --primary-light: #4f52b8;
+      --accent: #1BADE3;
+      --bg: #0f1419;
+      --card: #1a2332;
+      --text: #e6edf3;
+      --muted: #8b949e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; display: flex; flex-direction: column; }
+    .deck { flex: 1; position: relative; min-height: 0; }
+    .slide { position: absolute; inset: 0; display: none; flex-direction: column; padding: 1.25rem 2rem; }
+    .slide.active { display: flex; }
+    .slide.section-slide { justify-content: center; text-align: center; padding: 2rem; }
+    .slide.section-slide h2 { font-size: 1.75rem; color: var(--accent); }
+    .slide h1 { font-size: 2rem; color: var(--accent); margin-bottom: 0.35rem; }
+    .slide h2 { font-size: 1.35rem; color: var(--text); margin-bottom: 0.5rem; font-weight: 600; }
+    .slide h3 { font-size: 1.1rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .slide p, .slide li { color: var(--muted); line-height: 1.5; margin-bottom: 0.35rem; font-size: 0.9rem; }
+    .slide ul { margin-left: 1.25rem; margin-bottom: 0.5rem; }
+    .screenshot-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; margin: 0.5rem 0; }
+    .screenshot-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; border: 1px solid #30363d; }
+    /* Mobile slides: phone portrait aspect ratio (9:19.5 ~ 375×812) */
+    .screenshot-wrap.mobile-wrap { max-width: 320px; width: 100%; aspect-ratio: 9/19.5; max-height: 75vh; }
+    .screenshot-wrap.mobile-wrap img { border-radius: 24px; border: 3px solid #30363d; object-fit: contain; }
+    .screenshot-wrap.mobile-wrap .placeholder { width: 280px; aspect-ratio: 9/19.5; max-height: 65vh; border-radius: 24px; font-size: 0.75rem; }
+    .placeholder { display: none; width: 600px; max-width: 88%; height: 340px; background: var(--card); border: 2px dashed #30363d; border-radius: 6px; color: var(--muted); font-size: 0.8rem; align-items: center; justify-content: center; text-align: center; padding: 0.75rem; }
+    .screenshot-wrap img.err + .placeholder { display: flex; }
+    .placeholder.standalone { display: flex; }
+    .nav-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem; border-top: 1px solid #30363d; flex-shrink: 0; gap: 0.5rem; }
+    .global-nav { background: var(--bg); padding: 0.5rem 1.5rem; flex-wrap: wrap; }
+    .nav-bar button { background: var(--primary); color: #fff; border: none; padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    .nav-bar button:hover { background: var(--primary-light); }
+    .nav-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .nav-dots { display: flex; gap: 3px; flex-wrap: wrap; max-width: 280px; max-height: 32px; overflow: auto; align-items: center; }
+    .nav-dots a { width: 8px; height: 8px; border-radius: 50%; background: #30363d; flex-shrink: 0; }
+    .nav-dots a:hover { background: var(--muted); }
+    .nav-dots a.active { background: var(--accent); }
+    .slide-num { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+    .title-slide { justify-content: center; text-align: center; }
+    .title-slide h1 { font-size: 2.5rem; }
+    .title-slide .sub { font-size: 1.1rem; color: var(--muted); margin-top: 0.5rem; }
+    .agenda-list { list-style: none; margin-left: 0; font-size: 0.9rem; }
+    .agenda-list li { padding: 0.35rem 0; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 0.5rem; }
+    .agenda-list li::before { content: ''; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+  <div class="deck">
+
+    <!-- 1. Title -->
+    <section class="slide active" data-slide="1">
+      <div class="title-slide" style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+        <h1>Portal Demo</h1>
+        <p class="sub">Web & Mobile – Full walkthrough with screenshots</p>
+      </div>
+    </section>
+
+    <!-- 2. Agenda -->
+    <section class="slide" data-slide="2">
+      <h2>Agenda</h2>
+      <ul class="agenda-list">
+        <li>Platform overview</li>
+        <li><strong>Web:</strong> Login, Dashboard, Main (Approvals, AI Insights, Donor, Users, Audit, Settings)</li>
+        <li><strong>Web:</strong> Program (Programs, Partners, LFA, Beneficiaries, Activities, Form Builder, Monitoring, Budget, Expenses, Reports, Documents)</li>
+        <li><strong>Web:</strong> HRMS (Employees, Attendance, Leave, Recruitment, Performance, Payroll, Engagement, Calendar, Letters, ESS)</li>
+        <li><strong>Web:</strong> Administration (Assets, Stationery, Travel, Insurance, Admin Expenses)</li>
+        <li><strong>Mobile:</strong> Login, Home, Attendance, Leave, Activities, Expenses, Forms, Monitoring, More, Profile</li>
+        <li>Live walkthrough</li>
+      </ul>
+    </section>
+
+    <!-- 3. Platform overview -->
+    <section class="slide" data-slide="3">
+      <h2>Platform overview</h2>
+      <p>One portal, two entry points: <strong>Web</strong> (full MIS) and <strong>Mobile</strong> (field workflows). Same login and roles.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/overview.png" alt="Overview" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/overview.png</div>
+      </div>
+    </section>
+
+    <!-- SECTION: Web Portal -->
+    <section class="slide section-slide" data-slide="4">
+      <h2>Web Portal</h2>
+      <p style="margin-top:0.5rem;">Full MIS in the browser</p>
+    </section>
+
+    <!-- 5. Web Login -->
+    <section class="slide" data-slide="5">
+      <h2>Web – Login</h2>
+      <p>Email and password. Role determines visible modules after login.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/login.png" alt="Login" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/login.png</div>
+      </div>
+    </section>
+
+    <!-- 6. Web Dashboard -->
+    <section class="slide" data-slide="6">
+      <h2>Web – Dashboard</h2>
+      <p>Home for management/program: metrics, quick links to Approvals and Programs.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/dashboard.png" alt="Dashboard" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/dashboard.png</div>
+      </div>
+    </section>
+
+    <!-- 7. Approvals -->
+    <section class="slide" data-slide="7">
+      <h2>Web – Pending Approvals</h2>
+      <p>Central place for leave, program expenses, admin expenses, travel, stationery. Approve or reject from here.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/approvals.png" alt="Approvals" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/approvals.png</div>
+      </div>
+    </section>
+
+    <!-- 8. AI Insights -->
+    <section class="slide" data-slide="8">
+      <h2>Web – AI Insights</h2>
+      <p>Analytics and insights for programs and budget (for roles with dashboard/analytics access).</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/analytics.png" alt="AI Insights" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/analytics.png</div>
+      </div>
+    </section>
+
+    <!-- 9. Donor Portal -->
+    <section class="slide" data-slide="9">
+      <h2>Web – Donor Portal</h2>
+      <p>Donor view: programs and progress. Donor role sees only this area.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/donor-portal.png" alt="Donor Portal" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/donor-portal.png</div>
+      </div>
+    </section>
+
+    <!-- 10. Donor Management -->
+    <section class="slide" data-slide="10">
+      <h2>Web – Donor Management</h2>
+      <p>Manage donor records and program linkages (admin/management).</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/donor-mgmt.png" alt="Donor Management" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/donor-mgmt.png</div>
+      </div>
+    </section>
+
+    <!-- 11. User Management -->
+    <section class="slide" data-slide="11">
+      <h2>Web – User Management</h2>
+      <p>Create and edit users, assign roles and permissions.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/user-mgmt.png" alt="User Management" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/user-mgmt.png</div>
+      </div>
+    </section>
+
+    <!-- 12. Audit Log -->
+    <section class="slide" data-slide="12">
+      <h2>Web – Audit Log</h2>
+      <p>Track who did what and when across the system.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/audit.png" alt="Audit Log" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/audit.png</div>
+      </div>
+    </section>
+
+    <!-- 13. Settings -->
+    <section class="slide" data-slide="13">
+      <h2>Web – Settings</h2>
+      <p>Organization and system settings (e.g. financial year, defaults).</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/settings.png" alt="Settings" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/settings.png</div>
+      </div>
+    </section>
+
+    <!-- SECTION: Program Management -->
+    <section class="slide section-slide" data-slide="14">
+      <h2>Web – Program Management</h2>
+      <p style="margin-top:0.5rem;">Programs, partners, LFA, beneficiaries, activities, forms, budget, expenses, reports, documents</p>
+    </section>
+
+    <!-- 15. Programs -->
+    <section class="slide" data-slide="15">
+      <h2>Web – Programs</h2>
+      <p>List and manage programs; drill into details and linked activities/budget.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/programs.png" alt="Programs" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/programs.png</div>
+      </div>
+    </section>
+
+    <!-- 16. Partners -->
+    <section class="slide" data-slide="16">
+      <h2>Web – Partner Management</h2>
+      <p>Partner organizations and their linkage to programs.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/partners.png" alt="Partners" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/partners.png</div>
+      </div>
+    </section>
+
+    <!-- 17. LFA -->
+    <section class="slide" data-slide="17">
+      <h2>Web – Logical Framework (LFA)</h2>
+      <p>Logical framework matrix for programs: objectives, indicators, means of verification.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/lfa.png" alt="LFA" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/lfa.png</div>
+      </div>
+    </section>
+
+    <!-- 18. Beneficiaries -->
+    <section class="slide" data-slide="18">
+      <h2>Web – Beneficiaries & Impact</h2>
+      <p>Beneficiary data and impact tracking linked to programs.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/beneficiaries.png" alt="Beneficiaries" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/beneficiaries.png</div>
+      </div>
+    </section>
+
+    <!-- 19. Activities -->
+    <section class="slide" data-slide="19">
+      <h2>Web – Activities</h2>
+      <p>Program activities: list, filter by project, add/edit, export. Budget head, quarter, dates.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/activities.png" alt="Activities" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/activities.png</div>
+      </div>
+    </section>
+
+    <!-- 20. Form Builder -->
+    <section class="slide" data-slide="20">
+      <h2>Web – Form Builder (Data Collection)</h2>
+      <p>Design forms, assign to projects, view submissions. Used for field data collection (also on mobile).</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/form-builder.png" alt="Form Builder" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/form-builder.png</div>
+      </div>
+    </section>
+
+    <!-- 21. Monitoring -->
+    <section class="slide" data-slide="21">
+      <h2>Web – Monitoring</h2>
+      <p>Monitoring entries and indicators; filter by project.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/monitoring.png" alt="Monitoring" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/monitoring.png</div>
+      </div>
+    </section>
+
+    <!-- 22. Budget -->
+    <section class="slide" data-slide="22">
+      <h2>Web – Budget</h2>
+      <p>Program budgets: heads, allocation, revisions.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/budget.png" alt="Budget" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/budget.png</div>
+      </div>
+    </section>
+
+    <!-- 23. Expenses -->
+    <section class="slide" data-slide="23">
+      <h2>Web – Expenses & Bills</h2>
+      <p>Program expenses: list, verify, approve, settle. Filter by project and status.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/expenses.png" alt="Expenses" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/expenses.png</div>
+      </div>
+    </section>
+
+    <!-- 24. Reports -->
+    <section class="slide" data-slide="24">
+      <h2>Web – Reports</h2>
+      <p>Generate and download reports (program, financial, etc.).</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/reports.png" alt="Reports" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/reports.png</div>
+      </div>
+    </section>
+
+    <!-- 25. Documents -->
+    <section class="slide" data-slide="25">
+      <h2>Web – Documents</h2>
+      <p>Upload and organize documents by program/category.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/documents.png" alt="Documents" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/documents.png</div>
+      </div>
+    </section>
+
+    <!-- SECTION: HRMS -->
+    <section class="slide section-slide" data-slide="26">
+      <h2>Web – HRMS</h2>
+      <p style="margin-top:0.5rem;">Employees, attendance, leave, recruitment, performance, payroll, engagement, calendar, letters, self service</p>
+    </section>
+
+    <!-- 27. Employees -->
+    <section class="slide" data-slide="27">
+      <h2>Web – Employees</h2>
+      <p>Employee master: list, add, edit, link to user and role.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/employees.png" alt="Employees" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/employees.png</div>
+      </div>
+    </section>
+
+    <!-- 28. Attendance -->
+    <section class="slide" data-slide="28">
+      <h2>Web – Attendance</h2>
+      <p>Mark and view attendance; integrate with mobile if used.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/attendance.png" alt="Attendance" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/attendance.png</div>
+      </div>
+    </section>
+
+    <!-- 29. Leave -->
+    <section class="slide" data-slide="29">
+      <h2>Web – Leave</h2>
+      <p>Leave applications and balance; approve/reject from Approvals or here.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/leave.png" alt="Leave" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/leave.png</div>
+      </div>
+    </section>
+
+    <!-- 30. Recruitment -->
+    <section class="slide" data-slide="30">
+      <h2>Web – Recruitment</h2>
+      <p>Recruitment pipeline and vacancies.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/recruitment.png" alt="Recruitment" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/recruitment.png</div>
+      </div>
+    </section>
+
+    <!-- 31. Performance -->
+    <section class="slide" data-slide="31">
+      <h2>Web – Performance</h2>
+      <p>Performance reviews and goals.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/performance.png" alt="Performance" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/performance.png</div>
+      </div>
+    </section>
+
+    <!-- 32. Payroll -->
+    <section class="slide" data-slide="32">
+      <h2>Web – Payroll</h2>
+      <p>Payroll processing and payslips.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/payroll.png" alt="Payroll" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/payroll.png</div>
+      </div>
+    </section>
+
+    <!-- 33. Engagement -->
+    <section class="slide" data-slide="33">
+      <h2>Web – Engagement</h2>
+      <p>Employee engagement surveys or feedback.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/engagement.png" alt="Engagement" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/engagement.png</div>
+      </div>
+    </section>
+
+    <!-- 34. Calendar -->
+    <section class="slide" data-slide="34">
+      <h2>Web – HR Calendar</h2>
+      <p>Events and calendar for HR (holidays, meetings).</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/calendar.png" alt="Calendar" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/calendar.png</div>
+      </div>
+    </section>
+
+    <!-- 35. Letters -->
+    <section class="slide" data-slide="35">
+      <h2>Web – Letters</h2>
+      <p>Letter templates and generated letters (e.g. experience, NOC); download as Word.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/letters.png" alt="Letters" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/letters.png</div>
+      </div>
+    </section>
+
+    <!-- 36. ESS -->
+    <section class="slide" data-slide="36">
+      <h2>Web – Employee Self Service</h2>
+      <p>Employees view and update their own info, leave, documents.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/ess.png" alt="ESS" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/ess.png</div>
+      </div>
+    </section>
+
+    <!-- SECTION: Administration -->
+    <section class="slide section-slide" data-slide="37">
+      <h2>Web – Administration</h2>
+      <p style="margin-top:0.5rem;">Assets, stationery, travel, insurance, admin expenses</p>
+    </section>
+
+    <!-- 38. Assets -->
+    <section class="slide" data-slide="38">
+      <h2>Web – Assets</h2>
+      <p>Asset register and assignment.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/assets.png" alt="Assets" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/assets.png</div>
+      </div>
+    </section>
+
+    <!-- 39. Stationery -->
+    <section class="slide" data-slide="39">
+      <h2>Web – Stationery</h2>
+      <p>Stationery requests and approval.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/stationery.png" alt="Stationery" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/stationery.png</div>
+      </div>
+    </section>
+
+    <!-- 40. Travel -->
+    <section class="slide" data-slide="40">
+      <h2>Web – Travel</h2>
+      <p>Travel requests and bookings; approval workflow.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/travel.png" alt="Travel" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/travel.png</div>
+      </div>
+    </section>
+
+    <!-- 41. Insurance -->
+    <section class="slide" data-slide="41">
+      <h2>Web – Insurance</h2>
+      <p>Insurance policies and claims.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/insurance.png" alt="Insurance" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/insurance.png</div>
+      </div>
+    </section>
+
+    <!-- 42. Admin Expenses -->
+    <section class="slide" data-slide="42">
+      <h2>Web – Admin Expenses</h2>
+      <p>Non-program expenses: submit, approve, track.</p>
+      <div class="screenshot-wrap">
+        <img src="screenshots/web/admin-expenses.png" alt="Admin Expenses" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/web/admin-expenses.png</div>
+      </div>
+    </section>
+
+    <!-- SECTION: Mobile App -->
+    <section class="slide section-slide" data-slide="43">
+      <h2>Mobile App</h2>
+      <p style="margin-top:0.5rem;">Field workflows: same login, tabs for Home, Attendance, Leave, Activities, Expenses, Forms, Monitoring, More</p>
+    </section>
+
+    <!-- 44. Mobile Login -->
+    <section class="slide" data-slide="44">
+      <h2>Mobile – Login</h2>
+      <p>Same email/password as web. Tabs shown after login depend on role.</p>
+      <div class="screenshot-wrap mobile-wrap">
+        <img src="screenshots/mobile/login.png" alt="Mobile Login" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/mobile/login.png (portrait)</div>
+      </div>
+    </section>
+
+    <!-- 45. Mobile Home -->
+    <section class="slide" data-slide="45">
+      <h2>Mobile – Home</h2>
+      <p>Dashboard tab: summary and quick access. Bottom tabs: Home, Attendance, Leave, Activities, Expenses, Forms, Monitoring, More.</p>
+      <div class="screenshot-wrap mobile-wrap">
+        <img src="screenshots/mobile/home.png" alt="Mobile Home" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/mobile/home.png (portrait)</div>
+      </div>
+    </section>
+
+    <!-- 46. Mobile Attendance -->
+    <section class="slide" data-slide="46">
+      <h2>Mobile – Attendance</h2>
+      <p>Mark and view attendance from the field.</p>
+      <div class="screenshot-wrap mobile-wrap">
+        <img src="screenshots/mobile/attendance.png" alt="Mobile Attendance" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/mobile/attendance.png (portrait)</div>
+      </div>
+    </section>
+
+    <!-- 47. Mobile Leave -->
+    <section class="slide" data-slide="47">
+      <h2>Mobile – Leave</h2>
+      <p>Apply leave; view team leave and approve/reject if permitted.</p>
+      <div class="screenshot-wrap mobile-wrap">
+        <img src="screenshots/mobile/leave.png" alt="Mobile Leave" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/mobile/leave.png (portrait)</div>
+      </div>
+    </section>
+
+    <!-- 48. Mobile Activities -->
+    <section class="slide" data-slide="48">
+      <h2>Mobile – Activities</h2>
+      <p>List activities by project; add new activity (budget head, quarter, dates).</p>
+      <div class="screenshot-wrap mobile-wrap">
+        <img src="screenshots/mobile/activities.png" alt="Mobile Activities" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/mobile/activities.png (portrait)</div>
+      </div>
+    </section>
+
+    <!-- 49. Mobile Activity Form -->
+    <section class="slide" data-slide="49">
+      <h2>Mobile – Add Activity</h2>
+      <p>Activity form: project, budget head, quarter, start/end date, description.</p>
+      <div class="screenshot-wrap mobile-wrap">
+        <img src="screenshots/mobile/activity-form.png" alt="Activity Form" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/mobile/activity-form.png (portrait)</div>
+      </div>
+    </section>
+
+    <!-- 50. Mobile Expenses -->
+    <section class="slide" data-slide="50">
+      <h2>Mobile – Expenses</h2>
+      <p>List expenses; filter by project/status; verify, approve, settle. Add expense with bill/receipt upload.</p>
+      <div class="screenshot-wrap mobile-wrap">
+        <img src="screenshots/mobile/expenses.png" alt="Mobile Expenses" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/mobile/expenses.png (portrait)</div>
+      </div>
+    </section>
+
+    <!-- 51. Mobile Expense Form -->
+    <section class="slide" data-slide="51">
+      <h2>Mobile – Add Expense</h2>
+      <p>Expense form: amount, budget head, bill/receipt attachment.</p>
+      <div class="screenshot-wrap mobile-wrap">
+        <img src="screenshots/mobile/expense-form.png" alt="Expense Form" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/mobile/expense-form.png (portrait)</div>
+      </div>
+    </section>
+
+    <!-- 52. Mobile Forms -->
+    <section class="slide" data-slide="52">
+      <h2>Mobile – Forms (Data Collection)</h2>
+      <p>List forms; fill and submit; view and edit my submissions.</p>
+      <div class="screenshot-wrap mobile-wrap">
+        <img src="screenshots/mobile/forms.png" alt="Mobile Forms" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/mobile/forms.png (portrait)</div>
+      </div>
+    </section>
+
+    <!-- 53. Mobile Monitoring -->
+    <section class="slide" data-slide="53">
+      <h2>Mobile – Monitoring</h2>
+      <p>Monitoring entries; add from field; filter by project.</p>
+      <div class="screenshot-wrap mobile-wrap">
+        <img src="screenshots/mobile/monitoring.png" alt="Mobile Monitoring" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/mobile/monitoring.png (portrait)</div>
+      </div>
+    </section>
+
+    <!-- 54. Mobile More -->
+    <section class="slide" data-slide="54">
+      <h2>Mobile – More</h2>
+      <p>Profile, change password, links to open full web portal in browser, logout.</p>
+      <div class="screenshot-wrap mobile-wrap">
+        <img src="screenshots/mobile/more.png" alt="Mobile More" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/mobile/more.png (portrait)</div>
+      </div>
+    </section>
+
+    <!-- 55. Mobile Profile -->
+    <section class="slide" data-slide="55">
+      <h2>Mobile – Profile</h2>
+      <p>View profile and change password.</p>
+      <div class="screenshot-wrap mobile-wrap">
+        <img src="screenshots/mobile/profile.png" alt="Mobile Profile" onerror="this.classList.add('err')" />
+        <div class="placeholder">screenshots/mobile/profile.png (portrait)</div>
+      </div>
+    </section>
+
+    <!-- 56. Wrap-up -->
+    <section class="slide" data-slide="56">
+      <h2>Next: Live walkthrough</h2>
+      <ul>
+        <li>Web: login → dashboard → sample modules (Approvals, Programs, Form Builder, etc.).</li>
+        <li>Mobile: login → tabs → sample flow (Activity, Expense, or Form submission).</li>
+      </ul>
+      <p style="margin-top:1rem;">Questions before we switch to the live platform?</p>
+    </section>
+
+  </div>
+
+  <nav class="nav-bar global-nav" aria-label="Slide navigation">
+    <button type="button" id="prev" disabled>Previous</button>
+    <div class="nav-dots" id="dots"></div>
+    <span class="slide-num"><span id="current">1</span> / <span id="total">0</span></span>
+    <button type="button" id="next">Next</button>
+  </nav>
+
+  <script>
+    (function () {
+      const slides = document.querySelectorAll('.slide');
+      const total = slides.length;
+      let current = 0;
+
+      function show(i) {
+        i = Math.max(0, Math.min(i, total - 1));
+        current = i;
+        slides.forEach((s, j) => s.classList.toggle('active', j === i));
+        document.getElementById('current').textContent = i + 1;
+        document.getElementById('total').textContent = total;
+        document.getElementById('prev').disabled = i === 0;
+        document.getElementById('next').disabled = i === total - 1;
+        document.querySelectorAll('.nav-dots a').forEach((a, j) => a.classList.toggle('active', j === i));
+      }
+
+      function goPrev() { show(current - 1); }
+      function goNext() { show(current + 1); }
+
+      document.getElementById('total').textContent = total;
+
+      for (let i = 0; i < total; i++) {
+        const a = document.createElement('a');
+        a.href = '#';
+        a.title = 'Slide ' + (i + 1);
+        a.addEventListener('click', function (e) { e.preventDefault(); show(i); });
+        document.getElementById('dots').appendChild(a);
+      }
+
+      document.getElementById('prev').addEventListener('click', goPrev);
+      document.getElementById('next').addEventListener('click', goNext);
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowLeft') goPrev();
+        if (e.key === 'ArrowRight') goNext();
+      });
+
+      show(0);
+    })();
+  </script>
+</body>
+</html>

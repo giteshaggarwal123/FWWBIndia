@@ -23,10 +23,8 @@ export function FileUpload({ refModel, refId, onUploaded, label = 'Upload file' 
       form.append('file', file);
       if (refModel) form.append('refModel', refModel);
       if (refId) form.append('refId', refId);
-      const res = await api.post<{ _id: string }>('/files/upload', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      onUploaded?.(res.data._id);
+      const res = await api.post<{ _id: string }>('/files/upload', form);
+      if (res.data?._id) onUploaded?.(res.data._id);
       setFile(null);
     } catch (err: unknown) {
       setError(err && typeof err === 'object' && 'response' in err && (err as { response?: { data?: { message?: string } } }).response?.data?.message

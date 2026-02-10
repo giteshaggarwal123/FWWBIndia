@@ -37,6 +37,8 @@ Repo: [github.com/giteshaggarwal123/FWWBIndia](https://github.com/giteshaggarwal
 
 ## Hosting (Web + Mobile + Backend)
 
+**→ Full step-by-step: [DEPLOY.md](DEPLOY.md)** (Render + Vercel + Atlas + Docker.)
+
 - **Backend**: Deploy the `server/` (e.g. Render, Railway, Fly.io). Set env: `MONGODB_URI`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CLIENT_URL` (your web URL), `PORT`.
 - **Web**: Build with `cd client && npm run build`; deploy `client/dist` to Vercel, Netlify, or static host. Set API proxy or `VITE_API_URL` to your backend URL.
 - **Mobile**: Build with EAS (`eas build`) or Expo; point `mobile/src/config.ts` (or env) `API_BASE_URL` to your deployed backend `/api`. Publish to stores or internal distribution.

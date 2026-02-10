@@ -37,8 +37,9 @@ export function MonitoringPage() {
   const { data: activities = [] } = useQuery({
     queryKey: ['activities'],
     queryFn: async () => {
-      const res = await api.get<{ _id: string; name: string; project: string }[]>('/activities');
-      return res.data;
+      const res = await api.get<{ _id: string; name: string; project: string }[] | { data: unknown[] }>('/activities');
+      const d = res.data;
+      return Array.isArray(d) ? d : (d && typeof d === 'object' && 'data' in d ? (d as { data: { _id: string; name: string; project: string }[] }).data ?? [] : []);
     },
   });
   const { data: list = [], isLoading } = useQuery({
@@ -46,7 +47,7 @@ export function MonitoringPage() {
     queryFn: async () => {
       const params = projectFilter ? { project: projectFilter } : {};
       const res = await api.get<Entry[]>('/monitoring', { params });
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
   });
 

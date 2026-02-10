@@ -1,3 +1,26 @@
+/** All modules flat for permission/redirect helpers */
+function getAllModules(): { key: string; label: string; path: string }[] {
+  return NAV_SECTIONS.flatMap((s) => s.modules);
+}
+
+/** Resolve module key from pathname (e.g. /donor-portal/program/1 → donor-portal). */
+export function getModuleKeyByPath(pathname: string): string | null {
+  const modules = getAllModules();
+  const sorted = [...modules].sort((a, b) => b.path.length - a.path.length);
+  const match = sorted.find((m) => pathname === m.path || pathname.startsWith(m.path + '/'));
+  return match ? match.key : null;
+}
+
+/** First path the user is allowed to access (for redirect when no dashboard). */
+export function getFirstAllowedPath(hasPermission: (key: string) => boolean): string {
+  for (const section of NAV_SECTIONS) {
+    for (const m of section.modules) {
+      if (hasPermission(m.key)) return m.path;
+    }
+  }
+  return '/settings';
+}
+
 /** Sidebar order: Main (overview) → Program (field work) → HRMS (people & time) → Administration (ops). */
 export const NAV_SECTIONS: { title: string; modules: { key: string; label: string; path: string }[] }[] = [
   {

@@ -52,6 +52,8 @@ app.use(
     origin: (origin, cb) => {
       if (!origin) cb(null, true);
       else if (/^https?:\/\/localhost(:\d+)?$/.test(origin) || /^exp:\/\//.test(origin)) cb(null, true);
+      else if (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) cb(null, true);
+      else if (/\.vercel\.app$/.test(origin) || /\.onrender\.com$/.test(origin)) cb(null, true);
       else cb(null, false);
     },
     credentials: true,
@@ -103,6 +105,16 @@ app.use(`${API}/insurance`, insuranceRoutes);
 app.use(`${API}/travel`, travelRoutes);
 app.use(`${API}/stationery`, stationeryRoutes);
 app.use(`${API}/admin-expenses`, adminExpenseRoutes);
+
+// Catch-all error handler (for next(err) from routes)
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Route error:', err?.message ?? err);
+  res.status(500).json({ message: err?.message ?? 'Internal server error' });
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+});
 
 async function start() {
   await connectDB();

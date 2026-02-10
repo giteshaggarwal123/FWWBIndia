@@ -34,7 +34,7 @@ export function BudgetPage() {
     queryKey: ['settings', 'financial-years'],
     queryFn: async () => {
       const res = await api.get<string[]>('/settings/financial-years');
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
   });
   useEffect(() => {
@@ -51,7 +51,7 @@ export function BudgetPage() {
       if (projectFilter) params.project = projectFilter;
       if (fyFilter) params.financialYear = fyFilter;
       const res = await api.get<BudgetRow[]>('/budget', { params });
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
   });
 

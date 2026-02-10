@@ -66,7 +66,7 @@ export function SettingsPage() {
     queryKey: ['settings', 'financial-years'],
     queryFn: async () => {
       const res = await api.get<string[]>('/settings/financial-years');
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
   });
   const patchOrgMutation = useMutation({

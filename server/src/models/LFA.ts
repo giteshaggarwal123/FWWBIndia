@@ -1,9 +1,19 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+export interface ILFAProgressEntry extends Document {
+  period: string;
+  actual: number;
+  notes?: string;
+}
+
 export interface ILFAObjective extends Document {
   title: string;
   indicators?: string;
   meansOfVerification?: string;
+  target?: string;
+  baseline?: string;
+  frequency?: string;
+  progressEntries?: ILFAProgressEntry[];
   outcomes?: ILFAOutcome[];
 }
 
@@ -25,6 +35,10 @@ export interface ILFAActivity extends Document {
   meansOfVerification?: string;
 }
 
+const lfaProgressEntrySchema = new Schema<ILFAProgressEntry>(
+  { period: String, actual: Number, notes: String },
+  { _id: true }
+);
 const lfaActivitySchema = new Schema<ILFAActivity>(
   { title: String, indicators: String, meansOfVerification: String },
   { _id: true }
@@ -38,7 +52,7 @@ const lfaOutcomeSchema = new Schema<ILFAOutcome>(
   { _id: true }
 );
 const lfaObjectiveSchema = new Schema<ILFAObjective>(
-  { title: String, indicators: String, meansOfVerification: String, outcomes: [lfaOutcomeSchema] },
+  { title: String, indicators: String, meansOfVerification: String, target: String, baseline: String, frequency: String, progressEntries: [lfaProgressEntrySchema], outcomes: [lfaOutcomeSchema] },
   { _id: true }
 );
 

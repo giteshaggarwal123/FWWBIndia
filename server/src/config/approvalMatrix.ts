@@ -11,13 +11,13 @@ import type { RoleType } from './roles.js';
 export type ApprovalRequestType = 'leave' | 'program_expense_verify' | 'program_expense_approve' | 'admin_expense' | 'travel';
 
 /** Roles that can approve leave requests */
-export const LEAVE_APPROVERS: RoleType[] = ['hr', 'management'];
+export const LEAVE_APPROVERS: RoleType[] = ['hr', 'management', 'admin'];
 
 /** Roles that can verify program expenses (submitted → verified) */
-export const EXPENSE_VERIFIERS: RoleType[] = ['program', 'management'];
+export const EXPENSE_VERIFIERS: RoleType[] = ['program', 'management', 'admin'];
 
-/** Roles that can approve program expenses (verified → approved) or reject. Management always; program only below amount threshold */
-export const EXPENSE_APPROVERS: RoleType[] = ['management', 'program'];
+/** Roles that can approve program expenses (verified → approved) or reject. Management/admin always; program only below amount threshold */
+export const EXPENSE_APPROVERS: RoleType[] = ['management', 'admin', 'program'];
 
 /** Program expense amount (₹) above which only management can approve */
 export const EXPENSE_APPROVE_MANAGEMENT_THRESHOLD = 100000;
@@ -38,7 +38,7 @@ export function canVerifyExpense(roleType: RoleType): boolean {
 
 export function canApproveExpense(roleType: RoleType, amount?: number): boolean {
   if (!EXPENSE_APPROVERS.includes(roleType)) return false;
-  if (roleType === 'management') return true;
+  if (roleType === 'management' || roleType === 'admin') return true;
   if (roleType === 'program') {
     const amt = amount ?? 0;
     return amt < EXPENSE_APPROVE_MANAGEMENT_THRESHOLD;

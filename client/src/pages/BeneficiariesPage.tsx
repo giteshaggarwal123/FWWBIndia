@@ -54,8 +54,9 @@ export function BeneficiariesPage() {
   const { data: activities = [] } = useQuery({
     queryKey: ['activities', project],
     queryFn: async () => {
-      const res = await api.get<{ _id: string; name: string; project: string }[]>('/activities');
-      return res.data;
+      const res = await api.get<{ _id: string; name: string; project: string }[] | { data: unknown[] }>('/activities');
+      const d = res.data;
+      return Array.isArray(d) ? d : (d && typeof d === 'object' && 'data' in d ? (d as { data: { _id: string; name: string; project: string }[] }).data ?? [] : []);
     },
   });
   const activitiesForProject = project ? activities.filter((a) => a.project === project || (typeof a.project === 'object' && (a.project as { _id?: string })?._id === project)) : [];

@@ -45,8 +45,9 @@ export function ExpensesPage() {
   const { data: activities = [] } = useQuery({
     queryKey: ['activities'],
     queryFn: async () => {
-      const res = await api.get<{ _id: string; name: string; project: string }[]>('/activities');
-      return res.data;
+      const res = await api.get<{ _id: string; name: string; project: string }[] | { data: unknown[] }>('/activities');
+      const d = res.data;
+      return Array.isArray(d) ? d : (d && typeof d === 'object' && 'data' in d ? (d as { data: { _id: string; name: string; project: string }[] }).data ?? [] : []);
     },
   });
   const { data: list = [], isLoading } = useQuery({
@@ -56,7 +57,7 @@ export function ExpensesPage() {
       if (projectFilter) params.project = projectFilter;
       if (statusFilter) params.status = statusFilter;
       const res = await api.get<Expense[]>('/expenses', { params });
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
   });
 
@@ -130,6 +131,7 @@ export function ExpensesPage() {
             {row.status === 'submitted' && approval?.expenseVerify && <button type="button" onClick={() => updateStatusMutation.mutate({ id: row._id, status: 'verified' })} style={{ marginRight: 8, color: '#276749', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Verify</button>}
             {['submitted', 'verified'].includes(row.status) && approval?.expenseApprove && <button type="button" onClick={() => updateStatusMutation.mutate({ id: row._id, status: 'approved' })} style={{ marginRight: 8, color: '#276749', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Approve</button>}
             {['submitted', 'verified'].includes(row.status) && approval?.expenseApprove && <button type="button" onClick={() => updateStatusMutation.mutate({ id: row._id, status: 'rejected' })} style={{ color: '#c53030', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Reject</button>}
+            {row.status === 'approved' && approval?.expenseApprove && <button type="button" onClick={() => updateStatusMutation.mutate({ id: row._id, status: 'settled' })} style={{ marginLeft: 8, color: '#2b6cb0', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Settle</button>}
           </span>
         )}
       />

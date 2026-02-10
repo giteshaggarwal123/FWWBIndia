@@ -28,13 +28,14 @@ export function DashboardPage() {
         expenseCount: number;
         employeeCount: number;
         pendingLeave: number;
+        beneficiariesReached?: number;
         totalAllocated?: number;
         totalSpent?: number;
         activities?: ActivityItem[];
         budgetSummary?: BudgetItem[];
         programWiseSummary?: { projectId: string; projectName: string; allocated: number; utilized: number; utilizationPercent: number; activityCount: number }[];
       }>('/dashboard');
-      return res.data;
+      return res.data ?? {};
     },
   });
 
@@ -50,20 +51,24 @@ export function DashboardPage() {
         adminExpensesThisMonth: number;
         stationeryPending: number;
       }>('/alerts');
-      return res.data;
+      return res.data ?? {};
     },
   });
 
-  const budgetChartData = data?.budgetSummary?.map((b) => ({
-    name: b.head.length > 35 ? b.head.slice(0, 32) + '...' : b.head,
-    allocated: b.allocated ?? 0,
-    spent: b.spent ?? 0,
-  })) ?? [];
+  const budgetChartData = data?.budgetSummary?.map((b) => {
+    const head = b.head ?? '';
+    const spent = b.spent ?? b.utilized ?? 0;
+    return {
+      name: head.length > 35 ? head.slice(0, 32) + '...' : head,
+      allocated: b.allocated ?? 0,
+      spent: Number(spent),
+    };
+  }) ?? [];
 
   const activityChartData = data?.activities?.map((a) => ({
     name: a.name?.length > 20 ? a.name.slice(0, 18) + '...' : a.name ?? '',
     budget: a.budget ?? 0,
-    expenses: a.expenses ?? 0,
+    expenses: Number(a.expenses ?? 0),
   })) ?? [];
 
   const utilizationData =
@@ -71,8 +76,9 @@ export function DashboardPage() {
       const spent = b.spent ?? b.utilized ?? 0;
       const allocated = b.allocated ?? 0;
       const pct = b.utilizationPct ?? (allocated ? Math.round((spent / allocated) * 100) : 0);
+      const head = b.head ?? '';
       return {
-        name: b.head.split('-').pop()?.trim().slice(0, 15) ?? '',
+        name: head.split('-').pop()?.trim().slice(0, 15) ?? '',
         value: pct,
       };
     }) ?? [];
@@ -90,7 +96,18 @@ export function DashboardPage() {
       {isLoading && <p>Loading stats...</p>}
       {data && (
         <>
+          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: 16, marginBottom: 24 }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: 16 }}>Impact snapshot</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 18, fontWeight: 700 }}>Beneficiaries reached: {data.beneficiariesReached ?? 0}</span>
+              <Link to="/beneficiaries" style={{ fontSize: 14, color: '#2E3192', fontWeight: 600 }}>View beneficiaries →</Link>
+            </div>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
+            <div style={{ background: '#fff', padding: 20, borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <div style={{ fontSize: 12, color: '#718096', marginBottom: 4 }}>Beneficiaries reached</div>
+              <div style={{ fontSize: 24, fontWeight: 700 }}>{data.beneficiariesReached ?? 0}</div>
+            </div>
             <div style={{ background: '#fff', padding: 20, borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
               <div style={{ fontSize: 12, color: '#718096', marginBottom: 4 }}>Projects</div>
               <div style={{ fontSize: 24, fontWeight: 700 }}>{data.projectCount}</div>
@@ -189,16 +206,16 @@ export function DashboardPage() {
           </div>
         </>
       )}
-      {alerts && (alerts.insuranceRenewals30! > 0 || alerts.warrantyExpiring! > 0 || alerts.travelPending! > 0 || alerts.stationeryPending! > 0 || (alerts.adminExpensesThisMonth ?? 0) > 0) && (
+      {alerts && ((alerts.insuranceRenewals30 ?? 0) > 0 || (alerts.warrantyExpiring ?? 0) > 0 || (alerts.travelPending ?? 0) > 0 || (alerts.stationeryPending ?? 0) > 0 || (alerts.adminExpensesThisMonth ?? 0) > 0) && (
         <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: 16, marginBottom: 24 }}>
           <strong style={{ display: 'block', marginBottom: 8 }}>Alerts & reminders</strong>
           <ul style={{ margin: 0, paddingLeft: 20 }}>
-            {alerts.insuranceRenewals30! > 0 && <li>Insurance renewals in 30 days: {alerts.insuranceRenewals30}</li>}
-            {alerts.insuranceRenewals60! > 0 && <li>Insurance renewals in 60 days: {alerts.insuranceRenewals60}</li>}
-            {alerts.insuranceRenewals90! > 0 && <li>Insurance renewals in 90 days: {alerts.insuranceRenewals90}</li>}
-            {alerts.warrantyExpiring! > 0 && <li>Warranty expiring (assets): {alerts.warrantyExpiring}</li>}
-            {alerts.travelPending! > 0 && <li>Travel requests pending approval: {alerts.travelPending}</li>}
-            {alerts.stationeryPending! > 0 && <li>Stationery requests pending: {alerts.stationeryPending}</li>}
+            {(alerts.insuranceRenewals30 ?? 0) > 0 && <li>Insurance renewals in 30 days: {alerts.insuranceRenewals30}</li>}
+            {(alerts.insuranceRenewals60 ?? 0) > 0 && <li>Insurance renewals in 60 days: {alerts.insuranceRenewals60}</li>}
+            {(alerts.insuranceRenewals90 ?? 0) > 0 && <li>Insurance renewals in 90 days: {alerts.insuranceRenewals90}</li>}
+            {(alerts.warrantyExpiring ?? 0) > 0 && <li>Warranty expiring (assets): {alerts.warrantyExpiring}</li>}
+            {(alerts.travelPending ?? 0) > 0 && <li>Travel requests pending approval: {alerts.travelPending}</li>}
+            {(alerts.stationeryPending ?? 0) > 0 && <li>Stationery requests pending: {alerts.stationeryPending}</li>}
             {(alerts.adminExpensesThisMonth ?? 0) > 0 && <li>Admin expenses approved this month: {alerts.adminExpensesThisMonth}</li>}
           </ul>
           <div style={{ marginTop: 8, fontSize: 13 }}>

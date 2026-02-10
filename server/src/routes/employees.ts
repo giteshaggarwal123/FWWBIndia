@@ -46,9 +46,13 @@ router.get('/me', async (req: AuthRequest, res) => {
   res.json(emp);
 });
 
-router.use(requireRole('employees', 'recruitment', 'attendance', 'leave', 'performance', 'payroll', 'letters'));
+router.use(requireRole('employees', 'recruitment', 'attendance', 'leave', 'performance', 'payroll', 'letters', 'user-mgmt'));
 
 router.get('/', async (req: AuthRequest, res) => {
+  const page = Math.max(0, parseInt(String(req.query.page), 10) || 0);
+  const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit), 10) || 50));
+  const usePagination = req.query.page != null || req.query.limit != null;
+
   if (!isDBConnected()) {
     let list = [...FWWB_TEAM];
     const dept = (req.query.department as string)?.trim();
@@ -57,7 +61,9 @@ router.get('/', async (req: AuthRequest, res) => {
     if (dept) list = list.filter((e) => e.department === dept);
     if (status) list = list.filter((e) => e.status === status);
     if (search) list = list.filter((e) => e.name.toLowerCase().includes(search) || e.employeeId.toLowerCase().includes(search) || e.email.toLowerCase().includes(search));
-    return res.json(list);
+    const total = list.length;
+    if (usePagination) list = list.slice(page * limit, page * limit + limit);
+    return usePagination ? res.json({ data: list, total }) : res.json(list);
   }
   const dept = (req.query.department as string)?.trim();
   const status = (req.query.status as string)?.trim();
@@ -66,7 +72,21 @@ router.get('/', async (req: AuthRequest, res) => {
   if (dept) q.department = dept;
   if (status) q.status = status;
   if (search) q.$or = [{ name: new RegExp(search, 'i') }, { employeeId: new RegExp(search, 'i') }, { email: new RegExp(search, 'i') }];
-  let list = await Employee.find(q).sort({ createdAt: -1 }).lean();
+  if (usePagination) {
+    const [data, total] = await Promise.all([
+      Employee.find(q).sort({ createdAt: -1 }).populate('reportingTo', 'name employeeId').skip(page * limit).limit(limit).lean(),
+      Employee.countDocuments(q),
+    ]);
+    if (data.length === 0 && total === 0) {
+      let fallback = [...FWWB_TEAM] as typeof data;
+      if (dept) fallback = fallback.filter((e) => e.department === dept);
+      if (status) fallback = fallback.filter((e) => e.status === status);
+      if (search) fallback = fallback.filter((e) => e.name.toLowerCase().includes(search) || e.employeeId.toLowerCase().includes(search) || (e.email && e.email.toLowerCase().includes(search)));
+      return res.json({ data: fallback.slice(page * limit, page * limit + limit), total: fallback.length });
+    }
+    return res.json({ data, total });
+  }
+  let list = await Employee.find(q).sort({ createdAt: -1 }).populate('reportingTo', 'name employeeId').lean();
   if (list.length === 0) {
     list = [...FWWB_TEAM] as typeof list;
     if (dept) list = list.filter((e) => e.department === dept);
@@ -91,7 +111,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
     if (!doc) return res.status(404).json({ message: 'Not found' });
     return res.json(doc);
   }
-  const doc = await Employee.findById(req.params.id).lean();
+  const doc = await Employee.findById(req.params.id).populate('reportingTo', 'name employeeId').lean();
   if (!doc) return res.status(404).json({ message: 'Not found' });
   res.json(doc);
 });

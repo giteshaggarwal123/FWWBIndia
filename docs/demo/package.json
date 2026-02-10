@@ -1,0 +1,15 @@
+{
+  "name": "demo",
+  "version": "1.0.0",
+  "description": "A single-file HTML “slide deck” to demo the portal (web + mobile) with a logical flow, then switch to a live walkthrough.",
+  "main": "capture-web-screenshots.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "puppeteer": "^24.37.2"
+  }
+}

@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { Breadcrumb } from '../components/Breadcrumb';
 import { useProgramFilter } from '../context/ProgramFilterContext';
+import { useAuth } from '../hooks/useAuth';
 
 type FormField = { key: string; label: string; type: string; required?: boolean; options?: string[] };
 type Form = {
@@ -19,6 +21,8 @@ type Submission = { _id: string; data: Record<string, unknown>; submittedBy?: { 
 const FIELD_TYPES = ['text', 'number', 'date', 'select', 'textarea'];
 
 export function FormBuilderPage() {
+  const { hasPermission } = useAuth();
+  const canAccess = hasPermission('form-builder');
   const { selectedProjectId } = useProgramFilter();
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [submissionsView, setSubmissionsView] = useState(false);
@@ -35,6 +39,7 @@ export function FormBuilderPage() {
       const res = await api.get<Form[]>('/forms');
       return res.data ?? [];
     },
+    enabled: canAccess,
   });
 
   const forms = useMemo(() => {
@@ -47,11 +52,13 @@ export function FormBuilderPage() {
     queryKey: ['form-submissions', formId],
     queryFn: async () => {
       if (!formId) return [];
-      const res = await api.get(`/forms/${formId}/submissions`);
+      const res = await api.get(`/forms/submissions/${encodeURIComponent(formId)}`);
       const raw = res?.data;
-      return Array.isArray(raw) ? raw : [];
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === 'object' && Array.isArray((raw as { submissions?: unknown }).submissions)) return (raw as { submissions: unknown[] }).submissions;
+      return [];
     },
-    enabled: !!formId && submissionsView,
+    enabled: canAccess && !!formId && submissionsView,
   });
 
   const createMutation = useMutation({
@@ -120,6 +127,16 @@ export function FormBuilderPage() {
       createMutation.mutate(body);
     }
   };
+
+  if (!canAccess) {
+    return (
+      <div style={{ padding: 48, textAlign: 'center', background: '#fff', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ margin: '0 0 12px', color: '#2d3748' }}>Access denied</h2>
+        <p style={{ margin: 0, color: '#718096' }}>You do not have permission to access Form Builder (Data Collection).</p>
+        <Link to="/dashboard" style={{ display: 'inline-block', marginTop: 20, color: '#2E3192', fontWeight: 600 }}>Go to Dashboard</Link>
+      </div>
+    );
+  }
 
   return (
     <div>

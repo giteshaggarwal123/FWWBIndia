@@ -134,6 +134,30 @@ async function request<T>(
   return { data, ok, status };
 }
 
+/** Upload a file (bill/receipt) for an expense. uri from document picker. */
+export async function uploadFile(
+  uri: string,
+  name: string,
+  mimeType: string,
+  refModel: string,
+  refId: string
+): Promise<{ ok: boolean; status: number }> {
+  const formData = new FormData();
+  (formData as any).append('file', { uri, type: mimeType || 'application/octet-stream', name });
+  formData.append('refModel', refModel);
+  formData.append('refId', refId);
+  const token = await getStoredToken();
+  const url = `${API_BASE_URL}/files/upload`;
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  try {
+    const res = await fetchWithTimeout(url, { method: 'POST', body: formData, headers }, REQUEST_TIMEOUT_MS);
+    return { ok: res.ok, status: res.status };
+  } catch {
+    return { ok: false, status: 0 };
+  }
+}
+
 export const api = {
   get: <T>(path: string, opts?: RequestOptions) => request<T>(path, { ...opts, method: 'GET' }),
   post: <T>(path: string, body?: object, opts?: RequestOptions) =>

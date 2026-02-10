@@ -8,7 +8,7 @@ import { DEMO_BENEFICIARIES, DEMO_PROJECTS } from '../data/suprajaDemo.js';
 
 const router = Router();
 router.use(requireAuth);
-router.use(requireRole('programs', 'activities', 'reports'));
+router.use(requireRole('beneficiaries', 'programs', 'activities', 'reports'));
 
 const demoBeneficiaryStore: Record<string, { _id: string; project: string; type: string; count: number; category?: string; location?: string; period?: string; notes?: string; recordedAt: string }> = {};
 

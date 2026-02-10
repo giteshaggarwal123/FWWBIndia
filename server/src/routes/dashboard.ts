@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/requireAuth.js';
+import { requireRole } from '../middleware/requireRole.js';
 import type { AuthRequest } from '../middleware/requireAuth.js';
 import { getCurrentEmployee } from './employees.js';
 import { Activity } from '../models/Activity.js';
@@ -10,8 +11,9 @@ import { Employee } from '../models/Employee.js';
 import { LeaveRequest } from '../models/LeaveRequest.js';
 import { Attendance } from '../models/Attendance.js';
 import { FormSubmission } from '../models/FormSubmission.js';
+import { Beneficiary } from '../models/Beneficiary.js';
 import { isDBConnected } from '../config/db.js';
-import { dashboardStats, SUPRAJA_ACTIVITIES, SUPRAJA_BUDGET, DEMO_ATTENDANCE, DEMO_LEAVE, DEMO_FORM_SUBMISSIONS } from '../data/suprajaDemo.js';
+import { dashboardStats, SUPRAJA_ACTIVITIES, SUPRAJA_BUDGET, DEMO_ATTENDANCE, DEMO_LEAVE, DEMO_FORM_SUBMISSIONS, DEMO_BENEFICIARIES } from '../data/suprajaDemo.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -78,37 +80,53 @@ router.get('/me', async (req: AuthRequest, res) => {
   });
 });
 
-router.get('/', async (_req, res) => {
+router.get('/', requireRole('dashboard'), async (_req, res) => {
   if (!isDBConnected()) {
     const allocated = SUPRAJA_BUDGET.reduce((s, b) => s + (b.allocated ?? 0), 0);
     const utilized = SUPRAJA_BUDGET.reduce((s, b) => s + (b.spent ?? b.utilized ?? 0), 0);
+    const beneficiariesReached = (DEMO_BENEFICIARIES as { count?: number }[]).reduce((s, b) => s + (b.count ?? 0), 0);
     return res.json({
       ...dashboardStats,
+      beneficiariesReached,
       activities: SUPRAJA_ACTIVITIES,
       budgetSummary: SUPRAJA_BUDGET,
       programWiseSummary: [{ projectId: 'demo-supraja-project', projectName: 'Supraja Foundation - FPO Development', allocated, utilized, utilizationPercent: allocated ? Math.round((utilized / allocated) * 100) : 0, activityCount: SUPRAJA_ACTIVITIES.length }],
     });
   }
-  const [activityCount, projectCount, expenseCount, employeeCount, pendingLeave] = await Promise.all([
+  const [activityCount, projectCount, expenseCount, employeeCount, pendingLeave, beneficiaryAgg] = await Promise.all([
     Activity.countDocuments(),
     Project.countDocuments(),
     Expense.countDocuments(),
     Employee.countDocuments(),
     LeaveRequest.countDocuments({ status: 'pending' }),
+    Beneficiary.aggregate([{ $group: { _id: null, total: { $sum: '$count' } } }]),
   ]);
+  const beneficiariesReached = beneficiaryAgg[0]?.total ?? 0;
   const hasData = activityCount > 0 || projectCount > 0 || expenseCount > 0 || employeeCount > 0;
   if (!hasData) {
     return res.json({
       ...dashboardStats,
+      beneficiariesReached,
       activities: SUPRAJA_ACTIVITIES,
       budgetSummary: SUPRAJA_BUDGET,
       programWiseSummary: [],
     });
   }
-  const [activities, budgetList] = await Promise.all([
+  const [activitiesRaw, budgetList] = await Promise.all([
     Activity.find().populate('project', 'name').limit(50).lean(),
     Budget.find().populate('project', 'name').limit(20).lean(),
   ]);
+  const activityIds = activitiesRaw.map((a) => (a as { _id?: unknown })._id);
+  const expenseSums = await Expense.aggregate([
+    { $match: { activity: { $in: activityIds }, status: { $ne: 'rejected' } } },
+    { $group: { _id: '$activity', total: { $sum: '$amount' } } },
+  ]);
+  const expenseByActivity = new Map(expenseSums.map((e) => [String(e._id), e.total]));
+  const activities = activitiesRaw.map((a) => {
+    const aid = (a as { _id?: unknown })._id;
+    const expenseTotal = aid ? expenseByActivity.get(String(aid)) ?? 0 : 0;
+    return { ...a, expenses: expenseTotal };
+  });
   const totalAllocated = budgetList.reduce((s, b) => s + (b.allocated ?? 0), 0);
   const totalSpent = budgetList.reduce((s, b) => s + (b.spent ?? b.utilized ?? 0), 0);
   const budgetSummary = budgetList.map((b) => {
@@ -146,6 +164,7 @@ router.get('/', async (_req, res) => {
     expenseCount,
     employeeCount,
     pendingLeave,
+    beneficiariesReached,
     totalAllocated,
     totalSpent,
     activities,

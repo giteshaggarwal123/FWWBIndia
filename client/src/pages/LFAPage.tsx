@@ -6,7 +6,8 @@ import { useProjects } from '../hooks/useProjects';
 import { useProgramFilter } from '../context/ProgramFilterContext';
 import { Link } from 'react-router-dom';
 
-type LFAObjective = { title: string; indicators?: string; outcomes?: unknown[] };
+type LFAProgressEntry = { period: string; actual: number; notes?: string };
+type LFAObjective = { title: string; indicators?: string; target?: string; baseline?: string; frequency?: string; progressEntries?: LFAProgressEntry[]; outcomes?: unknown[] };
 type LFA = { _id?: string; project: string; goal: string; objectives: LFAObjective[] };
 
 export function LFAPage() {
@@ -87,9 +88,32 @@ export function LFAPage() {
     setObjectives(objectives.filter((_, idx) => idx !== i));
     setEditing(true);
   };
-  const updateObjective = (i: number, field: 'title' | 'indicators', value: string) => {
+  const updateObjective = (i: number, field: 'title' | 'indicators' | 'target' | 'baseline' | 'frequency', value: string) => {
     const next = [...objectives];
     next[i] = { ...next[i], [field]: value };
+    setObjectives(next);
+    setEditing(true);
+  };
+  const addProgressEntry = (objIndex: number) => {
+    const next = [...objectives];
+    const entries = next[objIndex].progressEntries ?? [];
+    next[objIndex] = { ...next[objIndex], progressEntries: [...entries, { period: new Date().toISOString().slice(0, 7), actual: 0, notes: '' }] };
+    setObjectives(next);
+    setEditing(true);
+  };
+  const removeProgressEntry = (objIndex: number, entryIndex: number) => {
+    const next = [...objectives];
+    const entries = [...(next[objIndex].progressEntries ?? [])];
+    entries.splice(entryIndex, 1);
+    next[objIndex] = { ...next[objIndex], progressEntries: entries };
+    setObjectives(next);
+    setEditing(true);
+  };
+  const updateProgressEntry = (objIndex: number, entryIndex: number, field: 'period' | 'actual' | 'notes', value: string | number) => {
+    const next = [...objectives];
+    const entries = [...(next[objIndex].progressEntries ?? [])];
+    entries[entryIndex] = { ...entries[entryIndex], [field]: value };
+    next[objIndex] = { ...next[objIndex], progressEntries: entries };
     setObjectives(next);
     setEditing(true);
   };
@@ -169,8 +193,25 @@ export function LFAPage() {
                       value={obj.indicators ?? ''}
                       onChange={(e) => updateObjective(i, 'indicators', e.target.value)}
                       placeholder="Indicators"
-                      style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }}
+                      style={{ width: '100%', padding: 8, marginBottom: 8, border: '1px solid #e2e8f0', borderRadius: 6 }}
                     />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                      <input type="text" value={obj.target ?? ''} onChange={(e) => updateObjective(i, 'target', e.target.value)} placeholder="Target" style={{ padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} />
+                      <input type="text" value={obj.baseline ?? ''} onChange={(e) => updateObjective(i, 'baseline', e.target.value)} placeholder="Baseline" style={{ padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} />
+                      <input type="text" value={obj.frequency ?? ''} onChange={(e) => updateObjective(i, 'frequency', e.target.value)} placeholder="Frequency (e.g. Quarterly)" style={{ padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} />
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ fontWeight: 600, marginBottom: 6 }}>Progress entries</div>
+                      {(obj.progressEntries ?? []).map((pe, ei) => (
+                        <div key={ei} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
+                          <input type="month" value={pe.period} onChange={(e) => updateProgressEntry(i, ei, 'period', e.target.value)} style={{ padding: 6, border: '1px solid #e2e8f0', borderRadius: 6 }} />
+                          <input type="number" value={pe.actual} onChange={(e) => updateProgressEntry(i, ei, 'actual', Number(e.target.value))} placeholder="Actual" style={{ width: 80, padding: 6, border: '1px solid #e2e8f0', borderRadius: 6 }} />
+                          <input type="text" value={pe.notes ?? ''} onChange={(e) => updateProgressEntry(i, ei, 'notes', e.target.value)} placeholder="Notes" style={{ flex: 1, minWidth: 100, padding: 6, border: '1px solid #e2e8f0', borderRadius: 6 }} />
+                          <button type="button" onClick={() => removeProgressEntry(i, ei)} style={{ color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>Remove</button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => addProgressEntry(i)} style={{ padding: '6px 12px', background: '#e2e8f0', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>+ Add progress</button>
+                    </div>
                   </div>
                   <button type="button" onClick={() => removeObjective(i)} style={{ color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Remove</button>
                 </div>

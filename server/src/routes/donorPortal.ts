@@ -5,6 +5,7 @@ import { Project } from '../models/Project.js';
 import { Activity } from '../models/Activity.js';
 import { Budget } from '../models/Budget.js';
 import { Expense } from '../models/Expense.js';
+import { Beneficiary } from '../models/Beneficiary.js';
 import { isDBConnected } from '../config/db.js';
 import { DONOR_PROGRAMS, SUPRAJA_PROJECT, SUPRAJA_ACTIVITIES, SUPRAJA_BUDGET, DEMO_EXPENSES } from '../data/suprajaDemo.js';
 import type { AuthRequest } from '../middleware/requireAuth.js';
@@ -61,15 +62,25 @@ router.get('/programs/:id', async (req: AuthRequest, res) => {
       budgets: budgetsForDetail,
       expenses: expensesForDetail,
       summary: { allocated, utilized, utilizationPercent: allocated ? Math.round((utilized / allocated) * 100) : 0 },
+      beneficiaries: { totalCount: 0, byType: [] },
     });
   }
   const project = await Project.findById(req.params.id).populate('partner').lean();
   if (!project) return res.status(404).json({ message: 'Not found' });
-  const [activities, budgets, expenses] = await Promise.all([
+  const [activities, budgets, expenses, beneficiaryAgg] = await Promise.all([
     Activity.find({ project: req.params.id }).lean(),
     Budget.find({ project: req.params.id }).lean(),
     Expense.find({ project: req.params.id }).populate('activity', 'name').lean(),
+    Beneficiary.aggregate([
+      { $match: { project: project._id } },
+      { $group: { _id: '$type', count: { $sum: '$count' } } },
+    ]),
   ]);
+  const totalBeneficiaries = beneficiaryAgg.reduce((s, g) => s + (g.count || 0), 0);
+  const beneficiaries = {
+    totalCount: totalBeneficiaries,
+    byType: beneficiaryAgg.map((g) => ({ type: g._id || 'other', count: g.count || 0 })),
+  };
   const allocated = budgets.reduce((s, b) => s + (b.allocated || 0), 0);
   const utilized = budgets.reduce((s, b) => s + (b.utilized || 0), 0);
   res.json({
@@ -78,6 +89,7 @@ router.get('/programs/:id', async (req: AuthRequest, res) => {
     budgets,
     expenses,
     summary: { allocated, utilized, utilizationPercent: allocated ? Math.round((utilized / allocated) * 100) : 0 },
+    beneficiaries,
   });
 });
 

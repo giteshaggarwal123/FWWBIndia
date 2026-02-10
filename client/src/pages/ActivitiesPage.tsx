@@ -29,13 +29,17 @@ type Activity = {
   actualParticipants?: number;
   achievementRate?: number;
   budgetHead?: string;
+  lfaObjectiveRef?: string;
 };
 
 const statusOptions = ['planned', 'in-progress', 'completed', 'delayed'];
 
+const PAGE_SIZE = 20;
+
 export function ActivitiesPage() {
   const { selectedProjectId, setSelectedProjectId } = useProgramFilter();
   const [projectFilter, setProjectFilter] = useState(selectedProjectId);
+  const [page, setPage] = useState(0);
   const [modal, setModal] = useState<'add' | 'edit' | 'import' | null>(null);
   const [editing, setEditing] = useState<Activity | null>(null);
   const queryClient = useQueryClient();
@@ -46,15 +50,24 @@ export function ActivitiesPage() {
   const onFilterChange = (id: string) => {
     setProjectFilter(id);
     setSelectedProjectId(id);
+    setPage(0);
   };
-  const { data: activities = [], isLoading } = useQuery({
-    queryKey: ['activities', projectFilter],
+  const { data: activitiesResponse, isLoading } = useQuery({
+    queryKey: ['activities', projectFilter, page],
     queryFn: async () => {
-      const params = projectFilter ? { project: projectFilter } : {};
-      const res = await api.get<Activity[]>('/activities', { params });
-      return res.data;
+      const params: Record<string, string | number> = { limit: PAGE_SIZE, page };
+      if (projectFilter) params.project = projectFilter;
+      const res = await api.get<{ data?: Activity[]; total?: number } | Activity[]>('/activities', { params });
+      const body = res.data;
+      if (body && typeof body === 'object' && 'data' in body && Array.isArray((body as { data: Activity[] }).data)) {
+        return { data: (body as { data: Activity[] }).data, total: (body as { total: number }).total ?? 0 };
+      }
+      return { data: Array.isArray(body) ? body : [], total: 0 };
     },
   });
+  const activities = activitiesResponse?.data ?? [];
+  const total = activitiesResponse?.total ?? (activitiesResponse?.data ? activities.length : 0);
+  const totalPages = Math.max(1, Math.ceil((total || activities.length) / PAGE_SIZE));
 
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => api.post('/activities', body),
@@ -83,6 +96,14 @@ export function ActivitiesPage() {
           {projects.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
         </select>
       </div>
+      {total > 0 && (
+        <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ color: '#4a5568', fontSize: 14 }}>Showing {page * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE + PAGE_SIZE, total)} of {total}</span>
+          <button type="button" disabled={page === 0} onClick={() => setPage((p) => p - 1)} style={{ padding: '6px 12px', border: '1px solid #e2e8f0', borderRadius: 6, cursor: page ? 'pointer' : 'not-allowed', opacity: page ? 1 : 0.6 }}>Previous</button>
+          <span style={{ fontSize: 14 }}>Page {page + 1} of {totalPages}</span>
+          <button type="button" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)} style={{ padding: '6px 12px', border: '1px solid #e2e8f0', borderRadius: 6, cursor: page < totalPages - 1 ? 'pointer' : 'not-allowed', opacity: page < totalPages - 1 ? 1 : 0.6 }}>Next</button>
+        </div>
+      )}
       <DataTable<Activity>
         keyField="_id"
         data={activities}
@@ -93,6 +114,7 @@ export function ActivitiesPage() {
           { key: 'date', label: 'Date', render: (r) => r.date || r.startDate || '-' },
           { key: 'project', label: 'Project', render: (r) => (r.project && typeof r.project === 'object' && 'name' in r.project ? (r.project as { name: string }).name : '-') },
           { key: 'budgetHead', label: 'Budget Head' },
+          { key: 'lfaObjectiveRef', label: 'LFA link', render: (r) => r.lfaObjectiveRef || '-' },
           { key: 'budget', label: 'Budget', render: (r) => `₹${Number(r.budget).toLocaleString()}` },
           { key: 'expenses', label: 'Expenses', render: (r) => r.expenses != null ? `₹${Number(r.expenses).toLocaleString()}` : '-' },
           { key: 'variance', label: 'Variance', render: (r) => r.variance != null ? `₹${Number(r.variance).toLocaleString()}` : '-' },
@@ -160,6 +182,38 @@ function ActivityForm({
   const [expectedParticipants, setExpectedParticipants] = useState(initial?.expectedParticipants ?? '');
   const [actualParticipants, setActualParticipants] = useState(initial?.actualParticipants ?? '');
   const [budgetHead, setBudgetHead] = useState(initial?.budgetHead ?? '');
+  const [lfaObjectiveRef, setLfaObjectiveRef] = useState(initial?.lfaObjectiveRef ?? '');
+  const { data: budgetHeads = [] } = useQuery({
+    queryKey: ['budget-heads', project],
+    queryFn: async () => {
+      if (!project) return [];
+      const res = await api.get<string[]>('/budget/heads', { params: { project } });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: !!project,
+  });
+  type LfaDoc = { objectives?: { title?: string; outcomes?: { title?: string; outputs?: { title?: string }[] }[] }[] };
+  const { data: lfaDoc } = useQuery({
+    queryKey: ['lfa', project],
+    queryFn: async () => {
+      if (!project) return null;
+      const res = await api.get<LfaDoc>(`/lfa/project/${project}`);
+      return res.data ?? null;
+    },
+    enabled: !!project,
+  });
+  const lfaOptions: string[] = [];
+  if (lfaDoc?.objectives) {
+    for (const obj of lfaDoc.objectives) {
+      if (obj.title) lfaOptions.push(obj.title);
+      for (const out of obj.outcomes ?? []) {
+        if (out.title) lfaOptions.push(`Outcome: ${out.title}`);
+        for (const op of out.outputs ?? []) {
+          if (op.title) lfaOptions.push(`Output: ${op.title}`);
+        }
+      }
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,6 +230,7 @@ function ActivityForm({
       expectedParticipants: expectedParticipants ? Number(expectedParticipants) : undefined,
       actualParticipants: actualParticipants ? Number(actualParticipants) : undefined,
       budgetHead: budgetHead || undefined,
+      lfaObjectiveRef: lfaObjectiveRef || undefined,
     });
   };
 
@@ -190,7 +245,24 @@ function ActivityForm({
           </select>
         </label>
         <label>Budget (₹) <input type="number" value={budget || ''} onChange={(e) => setBudget(Number(e.target.value) || 0)} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} /></label>
-        <label>Budget Head <input value={budgetHead} onChange={(e) => setBudgetHead(e.target.value)} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} /></label>
+        <label>Budget Head (from program budget)
+          <select value={budgetHead} onChange={(e) => setBudgetHead(e.target.value)} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }}>
+            <option value="">— Select —</option>
+            {budgetHeads.map((h) => (
+              <option key={h} value={h}>{h}</option>
+            ))}
+            {budgetHead && !budgetHeads.includes(budgetHead) && <option value={budgetHead}>{budgetHead}</option>}
+          </select>
+          <input value={budgetHead} onChange={(e) => setBudgetHead(e.target.value)} placeholder="Or type custom head" style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6, marginTop: 4 }} />
+        </label>
+        <label>LFA objective / output
+          <select value={lfaObjectiveRef} onChange={(e) => setLfaObjectiveRef(e.target.value)} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }}>
+            <option value="">— Select —</option>
+            {lfaOptions.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        </label>
         <label>Start Date <input value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} placeholder="e.g. 10-Oct" /></label>
         <label>End Date <input value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} placeholder="e.g. 12-Oct" /></label>
         <label>Quarter <input value={quarter} onChange={(e) => setQuarter(e.target.value)} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} /></label>
