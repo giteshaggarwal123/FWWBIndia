@@ -41,7 +41,7 @@ export function LoginPage() {
       }
       if (!msg) {
         msg = (axErr?.message?.includes('Network') || axErr?.message?.includes('timeout'))
-          ? 'Cannot reach server. Start the backend: cd server && npm run dev'
+          ? 'Cannot reach server. If using Render free tier, the backend may be waking up—wait 30–60 seconds and try again.'
           : 'Login failed. Check username and password (e.g. admin / demo123).';
       }
       setError(msg);
