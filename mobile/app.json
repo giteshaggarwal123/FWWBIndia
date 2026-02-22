@@ -28,7 +28,8 @@
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "extra": {
-      "apiUrl": "http://localhost:5000/api"
+      "apiUrl": "https://fwwbindia.onrender.com/api"
     }
   }
 }
+

@@ -12,10 +12,10 @@ const getDefaultApiUrl = (): string => {
   if (__DEV__) {
     return Platform.OS === 'android' ? 'http://10.0.2.2:5000/api' : 'http://localhost:5000/api';
   }
-  return 'https://your-production-api.com/api';
+  return 'https://fwwbindia.onrender.com/api';
 };
 
 export const API_BASE_URL = getDefaultApiUrl();
 
 /** Web portal URL for "Open in browser" links. Set EXPO_PUBLIC_WEB_PORTAL_URL in production (e.g. https://app.yoursite.com). */
-export const WEB_PORTAL_URL = (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_WEB_PORTAL_URL) || (__DEV__ ? 'http://localhost:5173' : '');
+export const WEB_PORTAL_URL = (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_WEB_PORTAL_URL) || (__DEV__ ? 'http://localhost:5173' : 'https://fwwb-india.vercel.app');
