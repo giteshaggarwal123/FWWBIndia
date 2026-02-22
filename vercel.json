@@ -1,5 +1,5 @@
 {
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://YOUR_RENDER_APP_URL/api/$1" }
-  ]
+  "buildCommand": "cd client && npm ci && npm run build",
+  "outputDirectory": "client/dist",
+  "framework": "vite"
 }

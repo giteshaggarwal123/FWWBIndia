@@ -185,8 +185,8 @@ function ExpenseForm({
   loading: boolean;
   billFileRef?: React.RefObject<HTMLInputElement | null>;
 }) {
-  const pid = initial?.project && typeof initial.project === 'object' && '_id' in initial.project ? (initial.project as { _id: string })._id : (initial?.project as string) ?? '';
-  const aid = initial?.activity && typeof initial.activity === 'object' && '_id' in initial.activity ? (initial.activity as { _id: string })._id : (initial?.activity as string) ?? '';
+  const pid = initial?.project && typeof initial.project === 'object' && '_id' in initial.project ? (initial.project as { _id: string })._id : (typeof initial?.project === 'string' ? initial.project : '') ?? '';
+  const aid = initial?.activity && typeof initial.activity === 'object' && '_id' in initial.activity ? (initial.activity as { _id: string })._id : (typeof initial?.activity === 'string' ? initial.activity : '') ?? '';
   const [project, setProject] = useState((pid || projects[0]?._id) ?? '');
   const [activity, setActivity] = useState(aid);
   const [amount, setAmount] = useState(initial?.amount?.toString() ?? '');
@@ -236,7 +236,7 @@ function ExpenseForm({
       <label>Amount (₹) * <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} /></label>
       <label>Description <input value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} /></label>
       <label>Date * <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} /></label>
-      {billFileRef && <label>Bill / Receipt (optional) <input ref={billFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ width: '100%', padding: 8 }} /></label>}
+      {billFileRef && <label>Bill / Receipt (optional) <input ref={billFileRef as React.RefObject<HTMLInputElement>} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ width: '100%', padding: 8 }} /></label>}
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <button type="submit" disabled={loading} style={{ padding: '10px 20px', background: '#2E3192', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>{loading ? 'Saving...' : 'Save'}</button>
         <button type="button" onClick={onClose} style={{ padding: '10px 20px', background: '#e2e8f0', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>

@@ -16,8 +16,6 @@ type Form = {
   createdBy?: { name: string };
   project?: { _id?: string; name: string };
 };
-type Submission = { _id: string; data: Record<string, unknown>; submittedBy?: { name: string }; createdAt: string };
-
 const FIELD_TYPES = ['text', 'number', 'date', 'select', 'textarea'];
 
 export function FormBuilderPage() {
