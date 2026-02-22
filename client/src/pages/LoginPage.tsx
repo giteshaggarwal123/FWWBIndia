@@ -2,12 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const HEALTH_URL = `${(import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')}/health`;
 
 async function checkBackendHealth(): Promise<boolean> {
   try {
-    const url = `${API_BASE.replace(/\/$/, '')}/health`;
-    const res = await fetch(url, { method: 'GET', credentials: 'include', signal: AbortSignal.timeout(15000) });
+    const res = await fetch(HEALTH_URL, { method: 'GET', credentials: 'omit', mode: 'cors', signal: AbortSignal.timeout(20000) });
     return res.ok;
   } catch {
     return false;
@@ -151,13 +150,24 @@ export function LoginPage() {
               {checkingBackend ? 'Connecting to server...' : 'Server is starting up (free tier may take 30–60 seconds)'}
             </p>
             {!checkingBackend && (
-              <button
-                type="button"
-                onClick={() => { setCheckingBackend(true); checkHealth().then((ok) => { setBackendReady(ok); setCheckingBackend(false); }); }}
-                style={{ padding: '10px 20px', background: '#2E3192', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
-              >
-                Retry connection
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => { setCheckingBackend(true); checkHealth().then((ok) => { setBackendReady(ok); setCheckingBackend(false); }); }}
+                  style={{ padding: '10px 20px', background: '#2E3192', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Retry connection
+                </button>
+                <a
+                  href={HEALTH_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 13, color: '#2E3192', textDecoration: 'underline' }}
+                >
+                  Wake backend (opens in new tab)
+                </a>
+                <p style={{ fontSize: 12, color: '#718096', marginTop: 4 }}>Wait 60 seconds on that tab, then click Retry</p>
+              </div>
             )}
           </div>
         ) : (
