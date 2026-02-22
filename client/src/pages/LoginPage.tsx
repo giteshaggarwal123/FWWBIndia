@@ -1,6 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
+async function checkBackendHealth(): Promise<boolean> {
+  try {
+    const url = `${API_BASE.replace(/\/$/, '')}/health`;
+    const res = await fetch(url, { method: 'GET', credentials: 'include', signal: AbortSignal.timeout(15000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 const DEMO_USERS = [
   { type: 'management', label: 'Management', username: 'admin', password: 'demo123', name: 'Admin User' },
@@ -12,13 +24,42 @@ const DEMO_USERS = [
 
 const DEFAULT_USER = DEMO_USERS[0];
 
+const LOGIN_RETRIES = 3;
+const RETRY_DELAY_MS = 8000;
+
 export function LoginPage() {
   const [username, setUsername] = useState(DEFAULT_USER.username);
   const [password, setPassword] = useState(DEFAULT_USER.password);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [backendReady, setBackendReady] = useState<boolean | null>(null);
+  const [checkingBackend, setCheckingBackend] = useState(true);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  const checkHealth = useCallback(async () => {
+    setCheckingBackend(true);
+    const ok = await checkBackendHealth();
+    setBackendReady(ok);
+    setCheckingBackend(false);
+    return ok;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      while (!cancelled) {
+        const ok = await checkBackendHealth();
+        if (cancelled) return;
+        setBackendReady(ok);
+        setCheckingBackend(false);
+        if (ok) return;
+        await new Promise((r) => setTimeout(r, 5000));
+      }
+    };
+    poll();
+    return () => { cancelled = true; };
+  }, []);
 
   const selectUser = (u: (typeof DEMO_USERS)[0]) => {
     setUsername(u.username);
@@ -30,24 +71,37 @@ export function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    try {
-      await login(username, password);
-      navigate('/dashboard', { replace: true });
-    } catch (err: unknown) {
-      const axErr = err as { response?: { data?: { message?: string; errors?: { msg?: string }[] }; status?: number }; message?: string };
-      let msg = axErr?.response?.data?.message;
-      if (!msg && Array.isArray(axErr?.response?.data?.errors) && axErr.response.data.errors.length > 0) {
-        msg = axErr.response.data.errors.map((e: { msg?: string }) => e.msg).filter(Boolean).join('. ') || 'Invalid input';
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < LOGIN_RETRIES; attempt++) {
+      try {
+        await login(username, password);
+        navigate('/dashboard', { replace: true });
+        return;
+      } catch (err: unknown) {
+        lastErr = err;
+        const axErr = err as { message?: string };
+        const isNetwork = axErr?.message?.includes('Network') || axErr?.message?.includes('timeout');
+        if (isNetwork && attempt < LOGIN_RETRIES - 1) {
+          setError(`Connecting... (attempt ${attempt + 1}/${LOGIN_RETRIES}, retrying in ${RETRY_DELAY_MS / 1000}s)`);
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+          setError('');
+          continue;
+        }
+        break;
       }
-      if (!msg) {
-        msg = (axErr?.message?.includes('Network') || axErr?.message?.includes('timeout'))
-          ? 'Cannot reach server. If using Render free tier, the backend may be waking up—wait 30–60 seconds and try again.'
-          : 'Login failed. Check username and password (e.g. admin / demo123).';
-      }
-      setError(msg);
-    } finally {
-      setLoading(false);
     }
+    const axErr = lastErr as { response?: { data?: { message?: string; errors?: { msg?: string }[] }; status?: number }; message?: string };
+    let msg = axErr?.response?.data?.message;
+    if (!msg && Array.isArray(axErr?.response?.data?.errors) && axErr.response.data.errors.length > 0) {
+      msg = axErr.response.data.errors.map((e: { msg?: string }) => e.msg).filter(Boolean).join('. ') || 'Invalid input';
+    }
+    if (!msg) {
+      msg = (axErr?.message?.includes('Network') || axErr?.message?.includes('timeout'))
+        ? 'Cannot reach server. Backend may be waking up. Click Retry below to check again.'
+        : 'Login failed. Check username and password (e.g. admin / demo123).';
+    }
+    setError(msg);
+    setLoading(false);
   };
 
   return (
@@ -90,6 +144,24 @@ export function LoginPage() {
           <img src="/fwwb-logo.png" alt="FWWB Logo" style={{ maxWidth: 200, maxHeight: 80, objectFit: 'contain' }} />
         </div>
         <h2 style={{ color: '#2d3748', marginBottom: 8, textAlign: 'center' }}>Welcome Back</h2>
+
+        {checkingBackend || !backendReady ? (
+          <div style={{ padding: 24, textAlign: 'center', background: '#f7fafc', borderRadius: 8, marginBottom: 24 }}>
+            <p style={{ color: '#4a5568', marginBottom: 12 }}>
+              {checkingBackend ? 'Connecting to server...' : 'Server is starting up (free tier may take 30–60 seconds)'}
+            </p>
+            {!checkingBackend && (
+              <button
+                type="button"
+                onClick={() => { setCheckingBackend(true); checkHealth().then((ok) => { setBackendReady(ok); setCheckingBackend(false); }); }}
+                style={{ padding: '10px 20px', background: '#2E3192', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+              >
+                Retry connection
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
         <p style={{ color: '#718096', fontSize: 13, marginBottom: 24, textAlign: 'center' }}>Select your role and sign in to continue</p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 24 }}>
@@ -158,6 +230,8 @@ export function LoginPage() {
             Ashram Road, Ahmedabad 380 009, Gujarat, India
           </p>
         </form>
+          </>
+        )}
       </div>
     </div>
   );
